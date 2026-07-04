@@ -1,0 +1,26 @@
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+
+group = 'expo.modules.alarmscheduler'
+version = '1.0.0'
+
+def expoModulesCorePlugin = new File(project(":expo-modules-core").projectDir.absolutePath, "ExpoModulesCorePlugin.gradle")
+if (expoModulesCorePlugin.exists()) {
+  apply from: expoModulesCorePlugin
+  applyKotlinExpoModulesCorePlugin()
+  useCoreDependencies()
+  useExpoPublishing()
+}
+
+android {
+  namespace "expo.modules.alarmscheduler"
+  compileSdk rootProject.ext.compileSdkVersion
+  defaultConfig {
+    minSdkVersion rootProject.ext.minSdkVersion
+    versionCode 1
+    versionName "1.0.0"
+  }
+  lintOptions {
+    abortOnError false
+  }
+}

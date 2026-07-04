@@ -1,0 +1,38 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+          xmlns:tools="http://schemas.android.com/tools">
+  <application>
+    <!--
+      Broadcast receivers for the alarm scheduler. AlarmFireReceiver is the
+      one that AlarmManager.setExactAndAllowWhileIdle() targets. When the
+      alarm fires (even if the app is killed / phone is locked / Doze mode
+      is active), this receiver is invoked by the OS.
+
+      BootCompletedReceiver re-arms pending alarms after a device reboot,
+      since AlarmManager loses all alarms across reboots.
+
+      Both are NOT exported (Android 12+ requirement for runtime receivers
+      with explicit Intent targeting).
+    -->
+    <receiver
+        android:name="expo.modules.alarmscheduler.AlarmFireReceiver"
+        android:exported="false">
+      <intent-filter>
+        <action android:name="expo.modules.alarmscheduler.FIRE" />
+      </intent-filter>
+    </receiver>
+    <receiver
+        android:name="expo.modules.alarmscheduler.BootCompletedReceiver"
+        android:exported="true"
+        android:permission="android.permission.RECEIVE_BOOT_COMPLETED">
+      <intent-filter>
+        <action android:name="android.intent.action.BOOT_COMPLETED" />
+        <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+        <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+      </intent-filter>
+    </receiver>
+    <service
+        android:name="expo.modules.alarmscheduler.SmartWakeService"
+        android:exported="false"
+        android:foregroundServiceType="health" />
+  </application>
+</manifest>

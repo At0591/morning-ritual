@@ -1,0 +1,11 @@
+[
+  {
+    "id": "sample_1",
+    "theme": "mind",
+    "tier": "free",
+    "title": "Drink a Glass of Water",
+    "description": "Start your day hydrated by drinking a full glass of water.",
+    "verification_mode": "camera",
+    "why_it_matters": "Rehydrating immediately after sleep kickstarts your metabolism and brain function."
+  }
+]

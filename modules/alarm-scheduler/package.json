@@ -1,0 +1,7 @@
+{
+  "name": "alarm-scheduler",
+  "version": "1.0.0",
+  "description": "Native AlarmManager module for reliable alarms on iQOO / Vivo / Xiaomi / Doze-restricted devices",
+  "main": "src/index.ts",
+  "private": true
+}

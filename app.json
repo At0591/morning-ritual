@@ -1,0 +1,83 @@
+{
+  "expo": {
+    "name": "Morning Ritual",
+    "slug": "morning-ritual",
+    "version": "1.0.1",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FAF7F2"
+    },
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "updates": {
+      "url": "https://u.expo.dev/c3d350f8-be04-4257-91db-aada06e6eabc"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.morningritual.client",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Morning Ritual records your voice so you can prove you completed the day's task.",
+        "NSCameraUsageDescription": "Morning Ritual uses the camera so you can capture proof of the day's task.",
+        "NSMotionUsageDescription": "Morning Ritual monitors movement to wake you up gently during your lightest sleep phase.",
+        "UIBackgroundModes": [
+          "audio"
+        ]
+      }
+    },
+    "android": {
+      "package": "app.morningritual.client",
+      "adaptiveIcon": {
+        "backgroundColor": "#FF6B35",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "RECORD_AUDIO",
+        "CAMERA",
+        "POST_NOTIFICATIONS",
+        "SCHEDULE_EXACT_ALARM",
+        "USE_EXACT_ALARM",
+        "USE_FULL_SCREEN_INTENT",
+        "VIBRATE",
+        "WAKE_LOCK",
+        "REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+        "RECEIVE_BOOT_COMPLETED",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.ACTIVITY_RECOGNITION"
+      ],
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-sqlite",
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Morning Ritual records your voice so you can prove you completed the day's task."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "c3d350f8-be04-4257-91db-aada06e6eabc"
+      },
+      "revenueCat": {
+        "iosApiKey": "appl_REPLACE_WITH_REVENUECAT_IOS_KEY",
+        "androidApiKey": "goog_REPLACE_WITH_REVENUECAT_ANDROID_KEY",
+        "monthlyProductId": "morning_ritual_premium_monthly",
+        "yearlyProductId": "morning_ritual_premium_yearly",
+        "entitlementId": "premium"
+      }
+    },
+    "owner": "at0591"
+  }
+}
