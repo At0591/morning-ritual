@@ -3,7 +3,8 @@
 // Opens DB, runs migrations, seeds from src/data/tasks.json on first launch.
 
 import * as SQLite from 'expo-sqlite';
-import tasksJson from '../data/tasks.json';
+import { localDateKey, shiftDateKey } from '../utils/dates';
+import tasksJson from '../data/rituals.json';
 
 const DB_NAME = 'morning_ritual.db';
 const SCHEMA_VERSION_KEY = 'schema_version';
@@ -19,7 +20,7 @@ let seededThisSession = false;
 
 /**
  * Open the database, run migrations, seed if first run.
- * Idempotent — safe to call multiple times.
+ * Idempotent â€” safe to call multiple times.
  */
 export async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
   if (dbInstance) return dbInstance;
@@ -27,7 +28,7 @@ export async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
   const db = await SQLite.openDatabaseAsync(DB_NAME);
   dbInstance = db;
 
-  // Apply schema (idempotent — all CREATE TABLE IF NOT EXISTS)
+  // Apply schema (idempotent â€” all CREATE TABLE IF NOT EXISTS)
   await db.execAsync(SCHEMA_SQL);
 
   // First-run seed
@@ -253,7 +254,7 @@ export async function getStreakHistory(daysBack: number = 7): Promise<DayHistory
   for (let i = daysBack - 1; i >= 0; i--) {
     const d = new Date(today);
     d.setDate(d.getDate() - i);
-    const dateStr = d.toISOString().split('T')[0];
+    const dateStr = localDateKey(d);
     const isToday = i === 0;
     const dow = d.getDay();
     const dayLabel = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dow];
@@ -280,9 +281,7 @@ export async function getStreakHistory(daysBack: number = 7): Promise<DayHistory
   );
 
   for (const row of rows as any[]) {
-    const d = new Date(row.completedAt);
-    d.setHours(0, 0, 0, 0);
-    const dateStr = d.toISOString().split('T')[0];
+    const dateStr = localDateKey(new Date(row.completedAt));
     const entry = days.find((day) => day.date === dateStr);
     if (entry) {
       entry.completed = true;
@@ -419,7 +418,7 @@ export async function clearPendingAlarms(): Promise<void> {
 /**
  * Wipe all user data (history + streaks + settings) and re-seed tasks.
  * Tasks table is re-seeded with the bundled JSON.
- * Use with care — this is destructive.
+ * Use with care â€” this is destructive.
  */
 export async function resetAllData(): Promise<void> {
   const db = getDb();
@@ -503,8 +502,8 @@ export async function updateHabitChain(
   completionDate: Date = new Date()
 ): Promise<{ chain: HabitChain; justCompleted: boolean; alreadyCompleted: boolean }> {
   const db = getDb();
-  const today = completionDate.toISOString().split('T')[0];
-  const yesterday = new Date(completionDate.getTime() - 86400_000).toISOString().split('T')[0];
+  const today = localDateKey(completionDate);
+  const yesterday = shiftDateKey(today, -1);
 
   const row = await db.getFirstAsync('SELECT * FROM habit_chains WHERE theme = ?', [theme]);
   if (!row) {
@@ -517,8 +516,8 @@ export async function updateHabitChain(
     return { chain: current, justCompleted: false, alreadyCompleted: true };
   }
 
-  // If yesterday → continue chain
-  // Otherwise → reset to 1
+  // If yesterday â†’ continue chain
+  // Otherwise â†’ reset to 1
   const newCount = current.lastChainDate === yesterday ? current.chainCount + 1 : 1;
   const justCompleted = newCount >= 7 && !current.earnedBadge;
   const newLongest = Math.max(current.longestChain, newCount);

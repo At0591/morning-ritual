@@ -1,5 +1,5 @@
-// App.tsx — Phase 3: Settings + History + Time picker + Tomorrow preview
-// Home → TaskReveal → Verification → Success → Home
+// App.tsx â€” Phase 3: Settings + History + Time picker + Tomorrow preview
+// Home â†’ TaskReveal â†’ Verification â†’ Success â†’ Home
 // Plus: Settings, History (reached from home header buttons)
 
 import { useEffect, useState } from 'react';
@@ -49,6 +49,8 @@ import {
   Alarm
 } from './src/db/database';
 import { getNextAlarmOccurrence } from './src/services/scheduleHelper';
+import { nextStreak } from './src/services/streak';
+import { localDateKey } from './src/utils/dates';
 import { pickDailyTask, PickResult } from './src/services/dailyPick';
 import {
   scheduleAlarm,
@@ -60,7 +62,6 @@ import {
   getScheduledAlarms,
   cancelAllAlarms,
   stopAlarmSound,
-  PRE_WAKE_WINDOW_SETTING_KEY,
 } from './src/services/alarm';
 import { scheduleBedtimeReminder, cancelBedtimeReminder } from './src/services/bedtime';
 import {
@@ -136,7 +137,7 @@ export default function App() {
         await initAlarmService();
         // Register the alarm-fire callback so when any mechanism fires the
         // alarm (JS timer, expo-notifications, native AlarmManager), we
-        // navigate to WakeUpScreen — which is the only screen that calls
+        // navigate to WakeUpScreen â€” which is the only screen that calls
         // stopAlarmSound() when the user completes the task.
         setOnAlarmFireCallback((taskId, _taskText) => {
           navigationRef.isReady() && navigationRef.navigate('Wake');
@@ -180,7 +181,7 @@ export default function App() {
         if (s.totalCompleted === 0) {
           setShowOnboarding(true);
         }
-        const tomorrow = await pickDailyTask({ tier: 'free', theme: theme ?? undefined });
+        const tomorrow = await pickDailyTask({ tier: subscriptionTier, theme: theme ?? undefined });
         setTomorrowPick(tomorrow);
       } catch (e: any) {
         setError(e?.message ?? String(e));
@@ -222,19 +223,19 @@ export default function App() {
       const now = new Date();
       const secondsUntil = Math.round((fireAt.getTime() - now.getTime()) / 1000);
       Alert.alert(
-        '✓ Alarm set',
+        'âœ“ Alarm set',
         `For ${fireAt.toLocaleString()}\n` +
         `(${secondsUntil}s from now)\n\n` +
         `If it doesn't fire:\n` +
-        `• Tap "List scheduled" to verify the OS has it\n` +
-        `• Check Settings → Apps → Morning Ritual → Notifications ON\n` +
-        `• Some phones (Xiaomi/OnePlus/Realme) need "Auto-start" enabled`
+        `â€¢ Tap "List scheduled" to verify the OS has it\n` +
+        `â€¢ Check Settings â†’ Apps â†’ Morning Ritual â†’ Notifications ON\n` +
+        `â€¢ Some phones (Xiaomi/OnePlus/Realme) need "Auto-start" enabled`
       );
     } catch (e: any) {
       setError(e?.message ?? String(e));
       Alert.alert(
-        '⚠️ Alarm not set',
-        `${e?.message ?? 'Unknown error'}\n\nIf you see "use a development build", grant notification permission in:\nSettings → Apps → Morning Ritual → Notifications`
+        'âš ï¸ Alarm not set',
+        `${e?.message ?? 'Unknown error'}\n\nIf you see "use a development build", grant notification permission in:\nSettings â†’ Apps â†’ Morning Ritual â†’ Notifications`
       );
     } finally {
       setScheduling(false);
@@ -261,54 +262,32 @@ export default function App() {
         taskTheme: pick.task.theme,
         verificationMode: pick.task.verification,
       });
-      // The task is genuinely verified done — stop the alarm sound NOW.
+      // The task is genuinely verified done â€” stop the alarm sound NOW.
       // This is the ONLY place the alarm is stopped on the "complete" path.
       // The user could have tapped "I'm doing it" on WakeUpScreen long ago
       // and we kept the sound going all the way through the verification
       // flow to prevent them from cheating.
       await stopAlarmSound();
 
-      const today = new Date().toISOString().split('T')[0];
-      const yesterday = new Date(Date.now() - 86400_000).toISOString().split('T')[0];
-      const twoDaysAgo = new Date(Date.now() - 2 * 86400_000).toISOString().split('T')[0];
-      const threeDaysAgo = new Date(Date.now() - 3 * 86400_000).toISOString().split('T')[0];
-
-      let newCurrent: number;
-      let usedGraceDay = false;
-      if (streak.lastCompletedDate === today) {
-        newCurrent = streak.currentStreak; // already counted today
-      } else if (streak.lastCompletedDate === yesterday) {
-        newCurrent = streak.currentStreak + 1;
-      } else if (streak.lastCompletedDate === twoDaysAgo && streak.graceDays >= 1) {
-        // 1 day missed, but grace period covers it
-        newCurrent = streak.currentStreak + 1;
-        usedGraceDay = true;
-      } else if (streak.lastCompletedDate === threeDaysAgo && streak.graceDays >= 2) {
-        // 2 days missed, but grace period covers it
-        newCurrent = streak.currentStreak + 1;
-        usedGraceDay = true;
-      } else {
-        newCurrent = 1; // gap too big → reset
-      }
-      const newLongest = Math.max(streak.longestStreak, newCurrent);
+      const next = nextStreak(streak, localDateKey());
       const updated: Partial<Streak> = {
-        currentStreak: newCurrent,
-        longestStreak: newLongest,
-        lastCompletedDate: today,
-        totalCompleted: streak.totalCompleted + 1,
+        currentStreak: next.currentStreak,
+        longestStreak: next.longestStreak,
+        lastCompletedDate: next.lastCompletedDate,
+        totalCompleted: next.totalCompleted,
       };
       await updateStreak(updated);
-      setLastStreakCount(newCurrent);
+      setLastStreakCount(next.currentStreak);
       setStreak({ ...streak, ...updated });
       // Update habit chain for this theme
       const chainResult = await updateHabitChain(pick.task.theme);
       if (chainResult.justCompleted) {
         // Could trigger a special celebration for chain completion
-        // For now, just refresh — the success screen will show the streak update
+        // For now, just refresh â€” the success screen will show the streak update
       }
       await refreshData();
       setPick(tomorrowPick);
-      const newTomorrow = await pickDailyTask({ tier: 'free', theme: preferredTheme ?? undefined });
+      const newTomorrow = await pickDailyTask({ tier: subscriptionTier, theme: preferredTheme ?? undefined });
       setTomorrowPick(newTomorrow);
       navigationRef.isReady() && navigationRef.navigate('Success');
     } catch (e: any) {
@@ -323,7 +302,7 @@ export default function App() {
         trackTaskSkipped({ taskTheme: pick?.task.theme ?? 'unknown' });
       } catch {}
     }
-    // User gave up on the task — silence the alarm so it doesn't keep
+    // User gave up on the task â€” silence the alarm so it doesn't keep
     // ringing while they go back to the home screen.
     await stopAlarmSound();
     navigationRef.isReady() && navigationRef.navigate('Home');
@@ -336,7 +315,7 @@ export default function App() {
   };
 
   // Open the app's notification settings page (deep-link).
-  // On Android this lands on Settings → Apps → Morning Ritual → Notifications
+  // On Android this lands on Settings â†’ Apps â†’ Morning Ritual â†’ Notifications
   // where the user can enable the "Ringtone" toggle. The Ringtone toggle is
   // disabled by default on many Chinese OEM skins (iQOO, Vivo, Xiaomi) and
   // must be turned on for notification sounds to play.
@@ -349,7 +328,7 @@ export default function App() {
         await Linking.openURL('app-settings:');
       }
     } catch (e: any) {
-      Alert.alert('Could not open Settings', 'Please open Settings → Apps → Morning Ritual → Notifications manually.');
+      Alert.alert('Could not open Settings', 'Please open Settings â†’ Apps â†’ Morning Ritual â†’ Notifications manually.');
     }
   };
 
@@ -361,9 +340,9 @@ export default function App() {
     Alert.alert(
       'Make alarms fire on lock screen',
       "iQOO / Vivo / Xiaomi aggressively kill background apps. To make sure the alarm fires when your phone is locked:\n\n" +
-      "1. Settings → Apps → Morning Ritual → Auto-launch → ON\n" +
-      "2. Settings → Apps → Morning Ritual → Battery → Unrestricted / Don't optimize\n" +
-      "3. Settings → Apps → Morning Ritual → Notifications → enable Ringtone\n\n" +
+      "1. Settings â†’ Apps â†’ Morning Ritual â†’ Auto-launch â†’ ON\n" +
+      "2. Settings â†’ Apps â†’ Morning Ritual â†’ Battery â†’ Unrestricted / Don't optimize\n" +
+      "3. Settings â†’ Apps â†’ Morning Ritual â†’ Notifications â†’ enable Ringtone\n\n" +
       "These are 3 quick toggles. Tap 'Open settings' to jump there now.",
       [
         { text: 'Open settings', onPress: onOpenNotificationSettings },
@@ -405,7 +384,7 @@ export default function App() {
         const summary = all
           .map(
             (n) =>
-              `• ${n.identifier.slice(-8)}  →  ${new Date(n.fireAt).toLocaleTimeString()}\n   "${n.taskText}..."  ${n.fired ? '✓ fired' : '⏳ pending'}`
+              `â€¢ ${n.identifier.slice(-8)}  â†’  ${new Date(n.fireAt).toLocaleTimeString()}\n   "${n.taskText}..."  ${n.fired ? 'âœ“ fired' : 'â³ pending'}`
           )
           .join('\n\n');
         Alert.alert(`${all.length} scheduled`, summary);
@@ -428,9 +407,9 @@ export default function App() {
     setPreferredTheme(theme);
     if (theme) await setSetting('preferred_theme', theme);
     else await setSetting('preferred_theme', '');
-    const result = await pickDailyTask({ tier: 'free', theme: theme ?? undefined });
+    const result = await pickDailyTask({ tier: subscriptionTier, theme: theme ?? undefined });
     setPick(result);
-    const tomorrow = await pickDailyTask({ tier: 'free', theme: theme ?? undefined });
+    const tomorrow = await pickDailyTask({ tier: subscriptionTier, theme: theme ?? undefined });
     setTomorrowPick(tomorrow);
   };
 
@@ -455,16 +434,11 @@ export default function App() {
     }
   };
 
-  const onSavePreWakeWindow = async (minutes: number) => {
-    setPreWakeWindow(minutes);
-    await setSetting(PRE_WAKE_WINDOW_SETTING_KEY, minutes.toString());
-  };
-
   const onResetAllData = async () => {
     await resetAllData();
     const s = await getStreak();
     setStreak(s);
-    const result = await pickDailyTask({ tier: 'free', theme: preferredTheme ?? undefined });
+    const result = await pickDailyTask({ tier: subscriptionTier, theme: preferredTheme ?? undefined });
     setPick(result);
     setTomorrowPick(null);
     navigationRef.isReady() && navigationRef.navigate('Home');
@@ -477,7 +451,7 @@ export default function App() {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color={colors.sunrise} />
-        <Text style={styles.subtext}>Waking up the database…</Text>
+        <Text style={styles.subtext}>Waking up the databaseâ€¦</Text>
         <StatusBar style="auto" />
       </View>
     );
@@ -486,7 +460,7 @@ export default function App() {
   if (error) {
     return (
       <View style={styles.center}>
-        <Text style={styles.errorEmoji}>😕</Text>
+        <Text style={styles.errorEmoji}>ðŸ˜•</Text>
         <Text style={styles.errorTitle}>Something went wrong</Text>
         <Text style={styles.errorText}>{error}</Text>
         <TouchableOpacity
@@ -533,7 +507,7 @@ export default function App() {
           <View style={styles.headerActions}>
             {streak.currentStreak > 0 && (
               <View style={styles.streakBadge}>
-                <Text style={styles.streakFlame}>🔥</Text>
+                <Text style={styles.streakFlame}>ðŸ”¥</Text>
                 <Text style={styles.streakNum}>{streak.currentStreak}</Text>
               </View>
             )}
@@ -558,7 +532,7 @@ export default function App() {
               activeOpacity={0.85}
             >
               <View style={{ flex: 1 }}>
-                <Text style={styles.alarmHelpTitle}>⏰ Make sure your alarm fires</Text>
+                <Text style={styles.alarmHelpTitle}>â° Make sure your alarm fires</Text>
                 <Text style={styles.alarmHelpBody}>
                   Some Android phones (iQOO, Vivo, Xiaomi) kill background apps.
                   Tap for 3 quick toggles so the alarm fires when your phone
@@ -573,7 +547,7 @@ export default function App() {
                 }}
                 hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               >
-                <Text style={styles.alarmHelpDismissText}>✕</Text>
+                <Text style={styles.alarmHelpDismissText}>âœ•</Text>
               </TouchableOpacity>
             </TouchableOpacity>
           ) : null
@@ -595,16 +569,16 @@ export default function App() {
               .map((c) => (
                 <View key={c.theme} style={styles.chainRow}>
                   <Text style={styles.chainEmoji}>
-                    {c.theme === 'body' ? '🧘' : c.theme === 'mind' ? '🧠' : c.theme === 'brain' ? '💡' : '🎨'}
+                    {c.theme === 'body' ? 'ðŸ§˜' : c.theme === 'mind' ? 'ðŸ§ ' : c.theme === 'brain' ? 'ðŸ’¡' : 'ðŸŽ¨'}
                   </Text>
                   <View style={styles.chainText}>
                     <Text style={styles.chainTitle}>
                       {c.chainCount}-day {c.theme} chain
-                      {c.earnedBadge ? ' 🏆' : ''}
+                      {c.earnedBadge ? ' ðŸ†' : ''}
                     </Text>
                     <Text style={styles.chainProgress}>
                       {c.earnedBadge
-                        ? 'Champion — earned!'
+                        ? 'Champion â€” earned!'
                         : c.chainCount >= 7
                         ? 'Almost there!'
                         : `${7 - c.chainCount} to go for the Champion badge`}
@@ -635,7 +609,7 @@ export default function App() {
           </View>
           <Text style={styles.cardText}>{pick.task.text}</Text>
           <Text style={styles.cardMeta}>
-            {pick.task.verification === 'media' ? '📷 ' + pick.task.mediaType : '✓ check-in'} · ~{pick.task.estSeconds}s
+            {pick.task.verification === 'media' ? 'ðŸ“· ' + pick.task.mediaType : 'âœ“ check-in'} Â· ~{pick.task.estSeconds}s
           </Text>
         </View>
 
@@ -652,7 +626,7 @@ export default function App() {
             disabled={scheduling || scheduledFor !== null || !nextAlarm}
           >
             <Text style={styles.smallBtnText}>
-              {scheduling ? '…' : scheduledFor ? '✓' : 'Set'}
+              {scheduling ? 'â€¦' : scheduledFor ? 'âœ“' : 'Set'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -682,32 +656,36 @@ export default function App() {
           </View>
         </View>
 
+        {__DEV__ ? (
+        <>
         <Text style={styles.footer}>
           Pool: {pick.candidatePoolSize} tasks
-          {pick.excludedByRepeat > 0 ? ` · ${pick.excludedByRepeat} excluded for variety` : ''}
+          {pick.excludedByRepeat > 0 ? ` Â· ${pick.excludedByRepeat} excluded for variety` : ''}
         </Text>
 
         <View style={styles.debugBox}>
-          <Text style={styles.debugTitle}>🔧 Notification Debug</Text>
+          <Text style={styles.debugTitle}>ðŸ”§ Notification Debug</Text>
           <Text style={styles.debugHelp}>
             Tap these to figure out which part is broken.
           </Text>
           <TouchableOpacity style={styles.debugBtn} onPress={onTestImmediate} activeOpacity={0.85}>
-            <Text style={styles.debugBtnText}>🔔 Test notification NOW</Text>
+            <Text style={styles.debugBtnText}>ðŸ”” Test notification NOW</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.debugBtn} onPress={onTestDelayed} activeOpacity={0.85}>
-            <Text style={styles.debugBtnText}>⏰ Test in 10 seconds</Text>
+            <Text style={styles.debugBtnText}>â° Test in 10 seconds</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.debugBtn} onPress={onTestMinute} activeOpacity={0.85}>
-            <Text style={styles.debugBtnText}>⏱️ Test in 60 seconds (matches real alarm)</Text>
+            <Text style={styles.debugBtnText}>â±ï¸ Test in 60 seconds (matches real alarm)</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.debugBtn} onPress={onListScheduled} activeOpacity={0.85}>
-            <Text style={styles.debugBtnText}>📋 List scheduled alarms</Text>
+            <Text style={styles.debugBtnText}>ðŸ“‹ List scheduled alarms</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.debugBtn} onPress={onCancelAll} activeOpacity={0.85}>
-            <Text style={styles.debugBtnText}>🗑️ Cancel all alarms</Text>
+            <Text style={styles.debugBtnText}>ðŸ—‘ï¸ Cancel all alarms</Text>
           </TouchableOpacity>
         </View>
+        </>
+        ) : null}
 
         <StatusBar style="auto" />
       </ScrollView>

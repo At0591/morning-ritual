@@ -13,8 +13,7 @@ export async function initAnalytics() {
   try {
     posthogClient = new PostHog(POSTHOG_API_KEY, {
       host: POSTHOG_HOST,
-      captureApplicationLifecycleEvents: true,
-      captureLifecycleEvents: true,
+      captureAppLifecycleEvents: true,
     });
     console.log('[analytics] PostHog initialized');
   } catch (error) {
