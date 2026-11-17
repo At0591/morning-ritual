@@ -2,10 +2,11 @@
 // Home → TaskReveal → Verification → Success → Home
 // Plus: Settings, History (reached from home header buttons)
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  AppState,
   Linking,
   Platform,
   ScrollView,
@@ -64,6 +65,9 @@ import {
   cancelAllAlarms,
   stopAlarmSound,
   ALARM_SOUND_SETTING_KEY,
+  addNativeAlarmListener,
+  canShowFullScreenAlarm,
+  openFullScreenAlarmSettings,
 } from './src/services/alarm';
 import { scheduleBedtimeReminder, cancelBedtimeReminder } from './src/services/bedtime';
 import {
@@ -118,6 +122,31 @@ export default function App() {
   const [bedtimeEnabled, setBedtimeEnabled] = useState<boolean>(false);
   const [subscriptionTier, setSubscriptionTier] = useState<SubscriptionTier>('free');
   const [alarmSoundHelpDismissed, setAlarmSoundHelpDismissed] = useState(false);
+  // Android 14+: can the alarm open full screen over the lock screen?
+  const [fullScreenOk, setFullScreenOk] = useState(true);
+  // A ringing alarm that asked for the wake screen before navigation was ready
+  // (during startup the loading screen is shown, so navigate() would no-op).
+  const pendingWakeRef = useRef(false);
+
+  const goToWake = () => {
+    if (navigationRef.isReady()) {
+      navigationRef.navigate('Wake');
+    } else {
+      pendingWakeRef.current = true;
+    }
+  };
+
+  // Re-check full-screen access whenever the user comes back to the app
+  // (for example from the system settings screen).
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', async (state) => {
+      if (state === 'active') setFullScreenOk(await canShowFullScreenAlarm());
+    });
+    return () => sub.remove();
+  }, []);
+
+  // An alarm that fires while the app is already open (warm start).
+  useEffect(() => addNativeAlarmListener(goToWake), []);
 
   const [fontsLoaded] = useFonts({
     Outfit_600SemiBold,
@@ -140,9 +169,7 @@ export default function App() {
         // alarm (JS timer, expo-notifications, native AlarmManager), we
         // navigate to WakeUpScreen — which is the only screen that calls
         // stopAlarmSound() when the user completes the task.
-        setOnAlarmFireCallback((taskId, _taskText) => {
-          navigationRef.isReady() && navigationRef.navigate('Wake');
-        });
+        setOnAlarmFireCallback(() => goToWake());
         // Recovery net: fire missed alarms + re-schedule pending ones
         // from the SQLite queue + check for cold-start alarm fired by the
         // native module while the app was killed.
@@ -150,12 +177,12 @@ export default function App() {
         if (restore.missed > 0 || restore.rescheduled > 0 || restore.coldStartFired) {
           console.log(`[bootstrap] alarm recovery: missed=${restore.missed}, rescheduled=${restore.rescheduled}, coldStartFired=${restore.coldStartFired}`);
         }
-        // If the native module reports a cold-start fired alarm, route
-        // to WakeUpScreen so the user can complete the task. The notification
-        // already woke the phone and played the alarm sound.
+        // The native alarm fired while the app was closed and is ringing now:
+        // open the wake screen as soon as navigation is ready (see onReady).
         if (restore.coldStartFired) {
-          navigationRef.isReady() && navigationRef.navigate('Wake');
+          goToWake();
         }
+        setFullScreenOk(await canShowFullScreenAlarm());
         await initSubscriptionService();
         const subStatus = await getSubscriptionStatus();
         setSubscriptionTier(subStatus.tier);
@@ -180,7 +207,10 @@ export default function App() {
         // Make sure the OS has the next alarm queued. No permission prompt here:
         // the home screen shows a clear "Allow" action if it's needed.
         applySyncResult(await syncAlarms(result.task));
-        if (s.totalCompleted === 0) {
+        // Onboarding is for people who haven't finished it, not for anyone with
+        // zero completed rituals, and a ringing alarm always takes priority.
+        const onboarded = (await getSetting('onboarding_complete')) === '1' || s.totalCompleted > 0;
+        if (!onboarded && !restore.coldStartFired) {
           setShowOnboarding(true);
         }
         const tomorrow = await pickDailyTask({ tier: subscriptionTier, theme: theme ?? undefined });
@@ -655,6 +685,18 @@ export default function App() {
           )}
         </View>
 
+        {alarmStatus === 'scheduled' && !fullScreenOk ? (
+          <View style={[styles.alarmRow, styles.alarmRowWarn]}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.alarmLabel}>One more permission</Text>
+              <Text style={styles.alarmValue}>Let your alarm open over the lock screen.</Text>
+            </View>
+            <TouchableOpacity style={styles.smallBtn} onPress={openFullScreenAlarmSettings} accessibilityRole="button">
+              <Text style={styles.smallBtnText}>Allow</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
         <TouchableOpacity style={styles.cta} onPress={onRevealNow} activeOpacity={0.85}>
           <Text style={styles.ctaText}>Reveal today's task</Text>
         </TouchableOpacity>
@@ -711,7 +753,15 @@ export default function App() {
   };
 
   return (
-    <NavigationContainer ref={navigationRef}>
+    <NavigationContainer
+      ref={navigationRef}
+      onReady={() => {
+        if (pendingWakeRef.current) {
+          pendingWakeRef.current = false;
+          navigationRef.navigate('Wake');
+        }
+      }}
+    >
       <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
         {showOnboarding ? (
           <Stack.Screen name="Onboarding">
@@ -729,6 +779,20 @@ export default function App() {
                   // ask for notification permission while the user is engaged.
                   await resyncAlarms(true, result.task);
                   setShowOnboarding(false);
+                  // Android 14+: the alarm can only open over the lock screen if
+                  // the user allows full-screen notifications. Ask now, in context.
+                  const canFullScreen = await canShowFullScreenAlarm();
+                  setFullScreenOk(canFullScreen);
+                  if (!canFullScreen) {
+                    Alert.alert(
+                      'Let your alarm wake you properly',
+                      'Allow Morning Ritual to show full-screen notifications, so your alarm opens over the lock screen instead of hiding in your notifications.',
+                      [
+                        { text: 'Not now', style: 'cancel' },
+                        { text: 'Allow', onPress: () => openFullScreenAlarmSettings() },
+                      ]
+                    );
+                  }
                 }}
               />
             )}

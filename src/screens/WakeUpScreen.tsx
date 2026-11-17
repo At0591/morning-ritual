@@ -27,7 +27,7 @@ import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { colors, radius, spacing, typography } from '../theme';
 import { themeEmoji } from '../theme';
-import { playAlarmSound, stopAlarmSound } from '../services/alarm';
+import { playAlarmSound, showOverLockScreen, stopAlarmSound } from '../services/alarm';
 import type { Task } from '../db/database';
 
 interface Props {
@@ -46,8 +46,10 @@ export function WakeUpScreen({ task, onComplete, onSnooze }: Props) {
   const pulseAnim = useSharedValue(0);
 
   useEffect(() => {
-    // Start the sound + vibration
+    // Make sure the alarm is ringing (on Android the native ringer usually
+    // already is) and that this screen shows over the lock screen.
     playAlarmSound();
+    showOverLockScreen(true);
 
     // Pulsing background animation (gentle "breathe" effect)
     pulseAnim.value = withRepeat(withTiming(1, { duration: 1200 }), -1, true);

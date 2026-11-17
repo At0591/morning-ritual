@@ -31,7 +31,7 @@ export type ScheduledNativeAlarm = {
 type NativeAlarmSchedulerModule = NativeModule<{
   onAlarmFire: (event: { taskId: string; taskText: string; fireAt: number }) => void;
 }> & {
-  scheduleAlarm(params: { taskId: string; taskText: string; triggerAtMillis: number; preWakeWindowMinutes?: number }): Promise<string>;
+  scheduleAlarm(params: ScheduleParams): Promise<string>;
   cancelAlarm(taskId: string): Promise<void>;
   cancelAllAlarms(): Promise<void>;
   getScheduledAlarms(): Promise<ScheduledNativeAlarm[]>;
@@ -39,6 +39,21 @@ type NativeAlarmSchedulerModule = NativeModule<{
   requestExactAlarmPermission(): Promise<boolean>;
   consumeLastFiredAlarm(): Promise<{ taskId: string; taskText: string; fireAt: number } | null>;
   clearLastFiredAlarm(): Promise<void>;
+  startRinging(params: { taskId: string; taskText: string; soundUri?: string }): Promise<boolean>;
+  stopRinging(): Promise<void>;
+  isRinging(): boolean;
+  canUseFullScreenIntent(): Promise<boolean>;
+  openFullScreenIntentSettings(): Promise<boolean>;
+  setShowWhenLocked(show: boolean): Promise<boolean>;
+};
+
+export type ScheduleParams = {
+  taskId: string;
+  taskText: string;
+  triggerAtMillis: number;
+  preWakeWindowMinutes?: number;
+  /** file:// URI of the tone to ring with; the phone's default alarm tone if missing. */
+  soundUri?: string;
 };
 
 const nativeModule = requireNativeModule<NativeAlarmSchedulerModule>('AlarmScheduler');
@@ -50,8 +65,24 @@ export type AlarmFireEvent = {
 };
 
 export const AlarmScheduler = {
-  scheduleAlarm: (params: { taskId: string; taskText: string; triggerAtMillis: number; preWakeWindowMinutes?: number }): Promise<string> =>
+  scheduleAlarm: (params: ScheduleParams): Promise<string> =>
     nativeModule.scheduleAlarm(params),
+
+  /** Loop the alarm tone on the alarm stream with vibration (foreground service). */
+  startRinging: (params: { taskId: string; taskText: string; soundUri?: string }): Promise<boolean> =>
+    nativeModule.startRinging(params),
+
+  stopRinging: (): Promise<void> => nativeModule.stopRinging(),
+
+  isRinging: (): boolean => nativeModule.isRinging(),
+
+  /** Android 14+: whether the alarm may open full screen over the lock screen. */
+  canUseFullScreenIntent: (): Promise<boolean> => nativeModule.canUseFullScreenIntent(),
+
+  openFullScreenIntentSettings: (): Promise<boolean> => nativeModule.openFullScreenIntentSettings(),
+
+  /** Show the app over the lock screen (on during the morning flow, off after). */
+  setShowWhenLocked: (show: boolean): Promise<boolean> => nativeModule.setShowWhenLocked(show),
 
   cancelAlarm: (taskId: string): Promise<void> =>
     nativeModule.cancelAlarm(taskId),

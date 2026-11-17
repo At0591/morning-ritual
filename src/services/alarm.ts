@@ -27,6 +27,7 @@
 import * as Notifications from 'expo-notifications';
 import * as Haptics from 'expo-haptics';
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
+import { Asset } from 'expo-asset';
 import { Platform } from 'react-native';
 import {
   recordScheduledAlarm,
@@ -82,14 +83,56 @@ function invokeCallback(taskId: string, taskText: string, source: 'native' | 'js
   }
 }
 
+/** The bundled tone the user picked in Settings (the default if none). */
+async function chosenSoundFile(): Promise<number> {
+  try {
+    const id = await getSetting(ALARM_SOUND_SETTING_KEY);
+    const chosen = id ? SOUND_OPTIONS.find((o) => o.id === id) : undefined;
+    if (chosen) return chosen.file;
+  } catch {
+    // Fall back to the default sound if the settings read fails.
+  }
+  return getSoundById(DEFAULT_SOUND_ID).file;
+}
+
 /**
- * Play the alarm sound (expo-audio), looping at full volume. Race-safe via a
- * generation counter. Reads the user's chosen sound from settings; the files
- * are the bundled MP3s in assets/sounds/tunes/.
+ * A file:// copy of the chosen tone that the native ringer can play. Bundled
+ * assets live inside the APK; expo-asset copies them to the cache on demand.
+ * Returns undefined if that fails, and the ringer then uses the phone's
+ * default alarm tone.
+ */
+export async function resolveAlarmSoundUri(): Promise<string | undefined> {
+  try {
+    const asset = Asset.fromModule(await chosenSoundFile());
+    await asset.downloadAsync();
+    const uri = asset.localUri ?? undefined;
+    return uri && uri.startsWith('file://') ? uri : undefined;
+  } catch (e: unknown) {
+    console.warn(`[alarm] could not resolve alarm tone: ${e instanceof Error ? e.message : String(e)}`);
+    return undefined;
+  }
+}
+
+/**
+ * Ring the alarm. On Android this starts the native AlarmRingService (looping
+ * tone on the alarm stream, vibration, works with the screen locked). If the
+ * native alarm is already ringing nothing restarts. Elsewhere, or if the
+ * native ringer fails, it plays the tone in-app with expo-audio. Race-safe via
+ * a generation counter.
  */
 export async function playAlarmSound(): Promise<void> {
   if (Platform.OS === 'web') return;
   const myGen = ++soundGeneration;
+  if (Platform.OS === 'android') {
+    try {
+      if (!AlarmScheduler.isRinging()) {
+        await AlarmScheduler.startRinging({ taskId: 'in-app', taskText: '', soundUri: await resolveAlarmSoundUri() });
+      }
+      return;
+    } catch (e: unknown) {
+      console.warn(`[alarm] native ringer failed, using in-app sound: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
   try {
     await setAudioModeAsync({
       allowsRecording: false,
@@ -104,14 +147,7 @@ export async function playAlarmSound(): Promise<void> {
     if (myGen !== soundGeneration) return;
     releaseActiveSound();
 
-    let soundFile: number = getSoundById(DEFAULT_SOUND_ID).file;
-    try {
-      const id = await getSetting(ALARM_SOUND_SETTING_KEY);
-      const chosen = id ? SOUND_OPTIONS.find((o) => o.id === id) : undefined;
-      if (chosen) soundFile = chosen.file;
-    } catch {
-      // Fall back to the default sound if the settings read fails.
-    }
+    const soundFile = await chosenSoundFile();
 
     if (myGen !== soundGeneration) return;
 
@@ -122,6 +158,46 @@ export async function playAlarmSound(): Promise<void> {
     activeSound = player;
   } catch (e: unknown) {
     console.error(`[alarm] failed to play alarm sound: ${e instanceof Error ? e.message : String(e)}`);
+  }
+}
+
+/** Android: show the app over the lock screen during the morning flow. */
+export async function showOverLockScreen(show: boolean): Promise<void> {
+  if (Platform.OS !== 'android') return;
+  try {
+    await AlarmScheduler.setShowWhenLocked(show);
+  } catch {
+    // Not available (tests); harmless.
+  }
+}
+
+/** Android 14+: whether the alarm may open full screen over the lock screen. */
+export async function canShowFullScreenAlarm(): Promise<boolean> {
+  if (Platform.OS !== 'android') return true;
+  try {
+    return await AlarmScheduler.canUseFullScreenIntent();
+  } catch {
+    return true;
+  }
+}
+
+export async function openFullScreenAlarmSettings(): Promise<void> {
+  if (Platform.OS !== 'android') return;
+  try {
+    await AlarmScheduler.openFullScreenIntentSettings();
+  } catch {
+    // Ignore; the home screen keeps showing the warning.
+  }
+}
+
+/** Android: subscribe to alarms firing while the app is already running. */
+export function addNativeAlarmListener(onFire: () => void): () => void {
+  if (Platform.OS !== 'android') return () => {};
+  try {
+    const sub = AlarmScheduler.addAlarmFireListener(() => onFire());
+    return () => sub?.remove?.();
+  } catch {
+    return () => {};
   }
 }
 
@@ -142,6 +218,16 @@ function releaseActiveSound(): void {
 export async function stopAlarmSound(): Promise<void> {
   soundGeneration++;
   releaseActiveSound();
+  if (Platform.OS === 'android') {
+    try {
+      await AlarmScheduler.stopRinging();
+      // The morning flow is over: stop showing the app over the lock screen.
+      await AlarmScheduler.setShowWhenLocked(false);
+      await AlarmScheduler.clearLastFiredAlarm();
+    } catch {
+      // Native module unavailable (tests, web); the in-app sound is already stopped.
+    }
+  }
 }
 
 /**
@@ -309,6 +395,7 @@ export async function scheduleAlarm(
   }
 
   activeAlarmId = id;
+  let nativeScheduled = false;
 
   // ---- Primary: native AlarmManager (Android) ----
   if (Platform.OS === 'android') {
@@ -322,7 +409,9 @@ export async function scheduleAlarm(
           preWakeWindowMinutes = 0;
         }
       }
-      await AlarmScheduler.scheduleAlarm({ taskId: id, taskText, triggerAtMillis, preWakeWindowMinutes });
+      const soundUri = await resolveAlarmSoundUri();
+      await AlarmScheduler.scheduleAlarm({ taskId: id, taskText, triggerAtMillis, preWakeWindowMinutes, soundUri });
+      nativeScheduled = true;
       console.log(`[alarm] native alarm scheduled id=${id}, preWake=${preWakeWindowMinutes}m`);
     } catch (e: any) {
       console.error(`[alarm] native schedule failed: ${e?.message ?? e}`);
@@ -331,7 +420,9 @@ export async function scheduleAlarm(
   }
 
   // ---- Secondary: expo-notifications timeInterval (iOS, or Android fallback) ----
-  try {
+  // Skipped when the native alarm is booked: it rings and notifies by itself,
+  // and a second notification at the same moment was a duplicate.
+  if (!nativeScheduled) try {
     const delaySec = Math.max(1, Math.round(delayMs / 1000));
     await Notifications.scheduleNotificationAsync({
       content: {
@@ -358,6 +449,11 @@ export async function scheduleAlarm(
   activeAlarmTimer = setTimeout(async () => {
     console.log(`[alarm] JS timer fired (foreground only), id=${id}`);
     activeAlarmTimer = null;
+    if (nativeScheduled) {
+      // The native ringer is already ringing; just bring up the wake screen.
+      invokeCallback(taskId, taskText, 'js_timer');
+      return;
+    }
     try {
       await displayAlarmNotification({
         id,
@@ -465,19 +561,26 @@ export async function restoreAlarmsOnAppStart(): Promise<{
 }> {
   await initAlarmService();
 
-  // 1) Fire any missed alarms
+  // 1) Missed alarms. On Android the native AlarmManager alarm already rang for
+  //    them (even with the app killed), so firing them again from JS was the
+  //    duplicate notification. Just mark them fired there.
   const missed = await getMissedAlarms();
   for (const alarm of missed) {
     try {
-      console.log(`[alarm] firing missed alarm id=${alarm.id}, fireAt=${alarm.fireAt}`);
-      await displayAlarmNotification(alarm);
+      if (Platform.OS === 'android') {
+        await markAlarmFired(alarm.id);
+      } else {
+        console.log(`[alarm] firing missed alarm id=${alarm.id}, fireAt=${alarm.fireAt}`);
+        await displayAlarmNotification(alarm);
+      }
     } catch (e: any) {
-      console.error(`[alarm] failed to fire missed alarm: ${e?.message ?? e}`);
+      console.error(`[alarm] failed to handle missed alarm: ${e?.message ?? e}`);
     }
   }
 
-  // 2) Re-schedule pending alarms via BOTH native and JS paths
-  const pending = await getPendingAlarms();
+  // 2) Re-schedule pending alarms. On Android, syncAlarms() runs straight after
+  //    app start and re-books the next alarm cleanly, so this is iOS-only.
+  const pending = Platform.OS === 'android' ? [] : await getPendingAlarms();
   let rescheduled = 0;
   for (const alarm of pending) {
     const fireAt = new Date(alarm.fireAt);

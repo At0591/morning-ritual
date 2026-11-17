@@ -1,12 +1,16 @@
 package expo.modules.alarmscheduler
 
+import android.app.Activity
 import android.app.AlarmManager
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import android.view.WindowManager
 import androidx.core.content.ContextCompat
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.events.EventEmitter
@@ -61,6 +65,7 @@ class AlarmSchedulerModule : Module() {
       val triggerAtMillis = (params["triggerAtMillis"] as? Number)?.toLong()
           ?: return@AsyncFunction promise.reject("MISSING_TRIGGER", "triggerAtMillis is required", null)
       val preWakeWindowMinutes = (params["preWakeWindowMinutes"] as? Number)?.toLong() ?: 0L
+      val soundUri = params["soundUri"] as? String
 
       val actualTriggerMillis = if (preWakeWindowMinutes > 0) {
           triggerAtMillis - (preWakeWindowMinutes * 60 * 1000)
@@ -91,6 +96,7 @@ class AlarmSchedulerModule : Module() {
         putExtra(EXTRA_TASK_TEXT, taskText)
         putExtra(EXTRA_IS_PRE_WAKE, preWakeWindowMinutes > 0)
         putExtra(EXTRA_REAL_TRIGGER_MILLIS, triggerAtMillis)
+        if (soundUri != null) putExtra(EXTRA_SOUND_URI, soundUri)
         // Explicit package — Android 12+ requires this for implicit broadcasts
         setPackage(context.packageName)
       }
@@ -129,6 +135,7 @@ class AlarmSchedulerModule : Module() {
           .putBoolean("${PREF_KEY_IS_PRE_WAKE}$taskId", preWakeWindowMinutes > 0)
           .putString("${PREF_KEY_TASK_TEXT}$taskId", taskText)
           .putString(PREF_KEY_LAST_SCHEDULED, taskId)
+          .putString(PREF_KEY_SOUND_URI, soundUri)
           .apply()
 
         promise.resolve(taskId)
@@ -261,6 +268,111 @@ class AlarmSchedulerModule : Module() {
         .apply()
       promise.resolve(null)
     }
+
+    // --- Ringing (AlarmRingService) ---
+
+    // Start ringing from JS (in-app fallback paths). No-op restart if already ringing.
+    AsyncFunction("startRinging") { params: Map<String, Any?>, promise: Promise ->
+      val context = appContext.reactContext
+        ?: return@AsyncFunction promise.reject("NO_CONTEXT", "No react context available", null)
+      try {
+        AlarmRingService.start(
+          context,
+          params["taskId"] as? String ?: "alarm",
+          params["taskText"] as? String ?: "",
+          (params["soundUri"] as? String) ?: savedSoundUri(context)
+        )
+        promise.resolve(true)
+      } catch (e: Exception) {
+        promise.reject("RING_FAILED", e.message ?: "Could not start ringing", null)
+      }
+    }
+
+    AsyncFunction("stopRinging") { promise: Promise ->
+      appContext.reactContext?.let { AlarmRingService.stop(it) }
+      promise.resolve(null)
+    }
+
+    Function("isRinging") {
+      AlarmRingService.isRinging
+    }
+
+    // --- Full-screen alarm access (Android 14+ requires the user to allow it) ---
+
+    AsyncFunction("canUseFullScreenIntent") { promise: Promise ->
+      val context = appContext.reactContext
+        ?: return@AsyncFunction promise.resolve(true)
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        promise.resolve(nm.canUseFullScreenIntent())
+      } else {
+        promise.resolve(true)
+      }
+    }
+
+    AsyncFunction("openFullScreenIntentSettings") { promise: Promise ->
+      val context = appContext.reactContext
+        ?: return@AsyncFunction promise.resolve(false)
+      val pkgUri = Uri.parse("package:${context.packageName}")
+      val action = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+        Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT
+      } else {
+        Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+      }
+      val intent = Intent(action, pkgUri)
+      intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+      try {
+        context.startActivity(intent)
+        promise.resolve(true)
+      } catch (_: Exception) {
+        // Some skins don't expose the dedicated screen; open the app's settings instead.
+        try {
+          context.startActivity(
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, pkgUri)
+              .apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
+          )
+          promise.resolve(true)
+        } catch (_: Exception) {
+          promise.resolve(false)
+        }
+      }
+    }
+
+    // --- Show over the lock screen while the morning flow is active ---
+
+    AsyncFunction("setShowWhenLocked") { show: Boolean, promise: Promise ->
+      val activity = appContext.currentActivity
+        ?: return@AsyncFunction promise.resolve(false)
+      activity.runOnUiThread { applyShowWhenLocked(activity, show) }
+      promise.resolve(true)
+    }
+
+    // Cold start from the alarm notification: show over the lock screen at once,
+    // without waiting several seconds for JS to load.
+    OnActivityEntersForeground {
+      val activity = appContext.currentActivity ?: return@OnActivityEntersForeground
+      if (activity.intent?.getBooleanExtra(EXTRA_FROM_ALARM, false) == true) {
+        activity.runOnUiThread { applyShowWhenLocked(activity, true) }
+      }
+    }
+
+    // Warm start: the app was already running when the alarm fired.
+    OnNewIntent { intent ->
+      if (intent.getBooleanExtra(EXTRA_FROM_ALARM, false)) {
+        appContext.currentActivity?.let { activity ->
+          activity.intent = intent
+          activity.runOnUiThread { applyShowWhenLocked(activity, true) }
+        }
+        sendEvent(
+          "onAlarmFire",
+          mapOf(
+            "taskId" to (intent.getStringExtra(EXTRA_TASK_ID) ?: ""),
+            "taskText" to "",
+            "fireAt" to System.currentTimeMillis()
+          )
+        )
+      }
+    }
   }
 
   companion object {
@@ -278,6 +390,28 @@ class AlarmSchedulerModule : Module() {
     const val PREF_KEY_LAST_FIRED_AT = "last_fired_at"
     const val EXTRA_IS_PRE_WAKE = "isPreWake"
     const val EXTRA_REAL_TRIGGER_MILLIS = "realTriggerMillis"
+    const val EXTRA_SOUND_URI = "soundUri"
+    /** Set on intents that open the app because an alarm is ringing. */
+    const val EXTRA_FROM_ALARM = "morningRitualFromAlarm"
+    const val PREF_KEY_SOUND_URI = "sound_uri"
+
+    @JvmStatic
+    fun savedSoundUri(context: Context): String? =
+      context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getString(PREF_KEY_SOUND_URI, null)
+
+    /** Let the activity appear over the lock screen and turn the screen on. */
+    @JvmStatic
+    @Suppress("DEPRECATION")
+    fun applyShowWhenLocked(activity: Activity, show: Boolean) {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+        activity.setShowWhenLocked(show)
+        activity.setTurnScreenOn(show)
+      } else {
+        val flags = WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+          WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+        if (show) activity.window.addFlags(flags) else activity.window.clearFlags(flags)
+      }
+    }
 
     /**
      * Called by AlarmFireReceiver to write the last-fired info so the JS

@@ -9,6 +9,7 @@ import android.content.Intent
 import android.media.AudioAttributes
 import android.media.RingtoneManager
 import android.os.Build
+import android.util.Log
 import androidx.core.app.NotificationCompat
 
 /**
@@ -44,12 +45,17 @@ class AlarmFireReceiver : BroadcastReceiver() {
 
     val isPreWake = intent.getBooleanExtra(AlarmSchedulerModule.EXTRA_IS_PRE_WAKE, false)
     val realTriggerMillis = intent.getLongExtra(AlarmSchedulerModule.EXTRA_REAL_TRIGGER_MILLIS, 0L)
+    // Tone chosen in the app (a file:// copy of the bundled sound); the extra is
+    // missing for alarms re-armed after a reboot, so fall back to the saved one.
+    val soundUri = intent.getStringExtra(AlarmSchedulerModule.EXTRA_SOUND_URI)
+      ?: AlarmSchedulerModule.savedSoundUri(context)
 
     if (isPreWake) {
       val serviceIntent = Intent(context, SmartWakeService::class.java).apply {
         putExtra(AlarmSchedulerModule.EXTRA_TASK_ID, taskId)
         putExtra(AlarmSchedulerModule.EXTRA_TASK_TEXT, taskText)
         putExtra(AlarmSchedulerModule.EXTRA_REAL_TRIGGER_MILLIS, realTriggerMillis)
+        putExtra(AlarmSchedulerModule.EXTRA_SOUND_URI, soundUri)
       }
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
         context.startForegroundService(serviceIntent)
@@ -60,8 +66,15 @@ class AlarmFireReceiver : BroadcastReceiver() {
       // 1) Persist for cold-start pickup
       AlarmSchedulerModule.recordLastFired(context, taskId, taskText, fireAt)
 
-      // 2) Post the lock-screen notification
-      postAlarmNotification(context, taskId, taskText)
+      // 2) Ring: a foreground service loops the tone on the alarm stream,
+      //    vibrates and shows the full-screen alarm notification. If Android
+      //    refuses to start it, fall back to the one-shot alarm notification.
+      try {
+        AlarmRingService.start(context, taskId, taskText, soundUri)
+      } catch (e: Exception) {
+        Log.e("AlarmFireReceiver", "could not start AlarmRingService: ${e.message}")
+        postAlarmNotification(context, taskId, taskText)
+      }
     }
   }
 
@@ -102,7 +115,10 @@ class AlarmFireReceiver : BroadcastReceiver() {
     // Tap → opens the app to its launcher activity. JS will read the
     // lastFired entry on mount and route to WakeUpScreen.
     val openIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
-      ?.apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP }
+      ?.apply {
+        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        putExtra(AlarmSchedulerModule.EXTRA_FROM_ALARM, true)
+      }
       ?: Intent()
     val openPi = PendingIntent.getActivity(
       context, taskId.hashCode() + 1, openIntent,

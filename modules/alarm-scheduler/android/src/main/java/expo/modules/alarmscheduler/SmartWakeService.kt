@@ -25,6 +25,7 @@ class SmartWakeService : Service(), SensorEventListener {
     private var taskId: String? = null
     private var taskText: String? = null
     private var realTriggerMillis: Long = 0L
+    private var soundUri: String? = null
 
     private var isFired = false
     private val handler = Handler(Looper.getMainLooper())
@@ -55,6 +56,7 @@ class SmartWakeService : Service(), SensorEventListener {
         taskId = intent?.getStringExtra(AlarmSchedulerModule.EXTRA_TASK_ID)
         taskText = intent?.getStringExtra(AlarmSchedulerModule.EXTRA_TASK_TEXT)
         realTriggerMillis = intent?.getLongExtra(AlarmSchedulerModule.EXTRA_REAL_TRIGGER_MILLIS, 0L) ?: 0L
+        soundUri = intent?.getStringExtra(AlarmSchedulerModule.EXTRA_SOUND_URI)
 
         startForegroundServiceNotification()
 
@@ -134,6 +136,7 @@ class SmartWakeService : Service(), SensorEventListener {
             putExtra(AlarmSchedulerModule.EXTRA_TASK_ID, taskId)
             putExtra(AlarmSchedulerModule.EXTRA_TASK_TEXT, taskText)
             putExtra(AlarmSchedulerModule.EXTRA_IS_PRE_WAKE, false)
+            putExtra(AlarmSchedulerModule.EXTRA_SOUND_URI, soundUri)
         }
         sendBroadcast(fireIntent)
 

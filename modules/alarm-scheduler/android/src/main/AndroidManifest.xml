@@ -1,5 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
           xmlns:tools="http://schemas.android.com/tools">
+  <!-- AlarmRingService: a media-playback foreground service that loops the alarm tone. -->
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+  <uses-permission android:name="android.permission.WAKE_LOCK" />
+  <uses-permission android:name="android.permission.VIBRATE" />
+  <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
   <application>
     <!--
       Broadcast receivers for the alarm scheduler. AlarmFireReceiver is the
@@ -34,5 +40,9 @@
         android:name="expo.modules.alarmscheduler.SmartWakeService"
         android:exported="false"
         android:foregroundServiceType="health" />
+    <service
+        android:name="expo.modules.alarmscheduler.AlarmRingService"
+        android:exported="false"
+        android:foregroundServiceType="mediaPlayback" />
   </application>
 </manifest>
