@@ -1,5 +1,7 @@
 # Morning Ritual 🌅
 
+[![checks](https://github.com/At0591/morning-ritual/actions/workflows/checks.yml/badge.svg)](https://github.com/At0591/morning-ritual/actions/workflows/checks.yml)
+
 > Start your day with intention.
 
 Morning Ritual is an iOS and Android alarm app designed to help you build positive morning habits. Instead of just swiping to dismiss or solving math problems, Morning Ritual requires you to complete a small, value-adding task before the alarm stops. 
