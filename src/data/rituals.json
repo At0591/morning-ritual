@@ -1,0 +1,42 @@
+[
+  {
+    "id": "body-001",
+    "theme": "body",
+    "text": "Placeholder: drink a full glass of water.",
+    "whyItMatters": "Development placeholder. Replaced by the curated, sourced rituals in Phase 1.",
+    "verification": "media",
+    "mediaType": "photo",
+    "estSeconds": 30,
+    "isFree": true
+  },
+  {
+    "id": "mind-001",
+    "theme": "mind",
+    "text": "Placeholder: write one thing you're grateful for.",
+    "whyItMatters": "Development placeholder. Replaced by the curated, sourced rituals in Phase 1.",
+    "verification": "checkin",
+    "mediaType": null,
+    "estSeconds": 60,
+    "isFree": true
+  },
+  {
+    "id": "brain-001",
+    "theme": "brain",
+    "text": "Placeholder: name the one task that would make today a good day.",
+    "whyItMatters": "Development placeholder. Replaced by the curated, sourced rituals in Phase 1.",
+    "verification": "checkin",
+    "mediaType": null,
+    "estSeconds": 60,
+    "isFree": true
+  },
+  {
+    "id": "creative-001",
+    "theme": "creative",
+    "text": "Placeholder: hum the first tune that comes to mind for ten seconds.",
+    "whyItMatters": "Development placeholder. Replaced by the curated, sourced rituals in Phase 1.",
+    "verification": "media",
+    "mediaType": "audio",
+    "estSeconds": 30,
+    "isFree": true
+  }
+]
