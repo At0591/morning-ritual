@@ -20,7 +20,7 @@ let seededThisSession = false;
 
 /**
  * Open the database, run migrations, seed if first run.
- * Idempotent â€” safe to call multiple times.
+ * Idempotent — safe to call multiple times.
  */
 export async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
   if (dbInstance) return dbInstance;
@@ -28,7 +28,7 @@ export async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
   const db = await SQLite.openDatabaseAsync(DB_NAME);
   dbInstance = db;
 
-  // Apply schema (idempotent â€” all CREATE TABLE IF NOT EXISTS)
+  // Apply schema (idempotent — all CREATE TABLE IF NOT EXISTS)
   await db.execAsync(SCHEMA_SQL);
 
   // First-run seed
@@ -418,7 +418,7 @@ export async function clearPendingAlarms(): Promise<void> {
 /**
  * Wipe all user data (history + streaks + settings) and re-seed tasks.
  * Tasks table is re-seeded with the bundled JSON.
- * Use with care â€” this is destructive.
+ * Use with care — this is destructive.
  */
 export async function resetAllData(): Promise<void> {
   const db = getDb();
@@ -516,8 +516,8 @@ export async function updateHabitChain(
     return { chain: current, justCompleted: false, alreadyCompleted: true };
   }
 
-  // If yesterday â†’ continue chain
-  // Otherwise â†’ reset to 1
+  // If yesterday → continue chain
+  // Otherwise → reset to 1
   const newCount = current.lastChainDate === yesterday ? current.chainCount + 1 : 1;
   const justCompleted = newCount >= 7 && !current.earnedBadge;
   const newLongest = Math.max(current.longestChain, newCount);
