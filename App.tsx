@@ -62,6 +62,7 @@ import {
   getScheduledAlarms,
   cancelAllAlarms,
   stopAlarmSound,
+  ALARM_SOUND_SETTING_KEY,
 } from './src/services/alarm';
 import { scheduleBedtimeReminder, cancelBedtimeReminder } from './src/services/bedtime';
 import {
@@ -160,7 +161,7 @@ export default function App() {
         setSubscriptionTier(subStatus.tier);
         const theme = await getSetting('preferred_theme');
         setPreferredTheme(theme);
-        const sound = await getSetting('alarm_sound');
+        const sound = await getSetting(ALARM_SOUND_SETTING_KEY);
         setSelectedSound(sound ?? 'default');
         const bt = await getSetting('bedtime');
         setBedtime(bt ?? '22:30');
@@ -415,7 +416,7 @@ export default function App() {
 
   const onSaveSound = async (soundId: string) => {
     setSelectedSound(soundId);
-    await setSetting('alarm_sound', soundId);
+    await setSetting(ALARM_SOUND_SETTING_KEY, soundId);
   };
 
   const onSaveBedtime = async (time: string, enabled: boolean) => {

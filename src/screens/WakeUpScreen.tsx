@@ -2,8 +2,8 @@
 // Fullscreen "WAKE UP" overlay shown when the alarm fires.
 // This is the LAST line of defense against the OS swallowing our alarm.
 //
-// Even if the notification is muted and expo-audio is silent, this screen
-// takes over the entire device, plays the bundled alarm sound via expo-av,
+// Even if the notification is muted, this screen takes over the entire
+// device, plays the bundled alarm sound (expo-audio, see services/alarm.ts),
 // vibrates strongly, and forces the user to deal with the alarm — they
 // can only dismiss it by completing the ritual (or by hitting snooze).
 

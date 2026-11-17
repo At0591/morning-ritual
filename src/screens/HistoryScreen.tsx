@@ -16,7 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Audio } from 'expo-av';
+import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { colors, radius, spacing, typography, themeColor, themeEmoji } from '../theme';
 import { getHistory, HistoryEntry } from '../db/database';
 
@@ -28,7 +28,9 @@ export function HistoryScreen({ onBack }: Props) {
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [playingUri, setPlayingUri] = useState<string | null>(null);
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
+  // One shared player for voice-note playback; released automatically on unmount.
+  const player = useAudioPlayer(null);
+  const playerStatus = useAudioPlayerStatus(player);
 
   useEffect(() => {
     (async () => {
@@ -42,33 +44,24 @@ export function HistoryScreen({ onBack }: Props) {
   }, []);
 
   useEffect(() => {
-    return () => {
-      if (sound) {
-        try { sound.unloadAsync(); } catch {}
-      }
-    };
-  }, [sound]);
+    if (playerStatus.didJustFinish) setPlayingUri(null);
+  }, [playerStatus.didJustFinish]);
 
+  // Tapping the playing note stops it; tapping another note switches to it.
   const playAudio = async (uri: string) => {
     try {
-      if (sound) {
-        await sound.unloadAsync();
-        setSound(null);
-      }
+      player.pause();
       if (playingUri === uri) {
         setPlayingUri(null);
         return;
       }
-      const { sound: s } = await Audio.Sound.createAsync({ uri });
-      s.setOnPlaybackStatusUpdate((status) => {
-        if (status.isLoaded && status.didJustFinish) {
-          setPlayingUri(null);
-        }
-      });
-      await s.playAsync();
-      setSound(s);
+      player.replace({ uri });
+      await player.seekTo(0);
+      player.play();
       setPlayingUri(uri);
-    } catch {}
+    } catch {
+      setPlayingUri(null);
+    }
   };
 
   const formatDate = (iso: string) => {

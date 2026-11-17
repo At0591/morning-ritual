@@ -26,7 +26,7 @@
 
 import * as Notifications from 'expo-notifications';
 import * as Haptics from 'expo-haptics';
-import { Audio } from 'expo-av';
+import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import { Platform } from 'react-native';
 import {
   recordScheduledAlarm,
@@ -42,7 +42,10 @@ import { getSoundById, DEFAULT_SOUND_ID, SOUND_OPTIONS } from './sounds';
 import { getSetting } from '../db/database';
 import { trackAlarmFired } from './analytics';
 
-export const ALARM_SOUND_SETTING_KEY = 'alarm_sound_id';
+// Must match the key the Settings screen saves to (App.tsx). It used to read
+// 'alarm_sound_id' while Settings saved 'alarm_sound', so the chosen tone was
+// never played.
+export const ALARM_SOUND_SETTING_KEY = 'alarm_sound';
 export const PRE_WAKE_WINDOW_SETTING_KEY = 'pre_wake_window_minutes';
 
 const ALARM_CHANNEL_ID = 'morning-ritual-alarm-v2';
@@ -52,7 +55,7 @@ const ALARM_CATEGORY_ID = 'morning-ritual-alarm';
 let initialized = false;
 let activeAlarmTimer: ReturnType<typeof setTimeout> | null = null;
 let activeAlarmId: string | null = null;
-let activeSound: Audio.Sound | null = null;
+let activeSound: AudioPlayer | null = null;
 // Generation counter for in-flight playAlarmSound() calls. See playAlarmSound
 // for the race-condition fix.
 let soundGeneration = 0;
@@ -80,65 +83,57 @@ function invokeCallback(taskId: string, taskText: string, source: 'native' | 'js
 }
 
 /**
- * Play the alarm sound via expo-av at ALARM volume stream. Race-safe
- * via a generation counter. Reads the user's chosen sound from
- * settings (default: ocean-atlantic). The chosen audio file is one
- * of the bundled MP3s in assets/sounds/tunes/.
+ * Play the alarm sound (expo-audio), looping at full volume. Race-safe via a
+ * generation counter. Reads the user's chosen sound from settings; the files
+ * are the bundled MP3s in assets/sounds/tunes/.
  */
 export async function playAlarmSound(): Promise<void> {
   if (Platform.OS === 'web') return;
   const myGen = ++soundGeneration;
   try {
-    await Audio.setAudioModeAsync({
-      allowsRecordingIOS: false,
-      playsInSilentModeIOS: true,
-      shouldDuckAndroid: false,
-      playThroughEarpieceAndroid: false,
+    await setAudioModeAsync({
+      allowsRecording: false,
+      playsInSilentMode: true,
+      // Exclusive audio focus: other apps pause rather than duck under the alarm.
+      interruptionMode: 'doNotMix',
+      // Keep ringing if the user leaves the app before finishing the ritual.
+      shouldPlayInBackground: true,
+      shouldRouteThroughEarpiece: false,
     });
 
     if (myGen !== soundGeneration) return;
+    releaseActiveSound();
 
-    if (activeSound) {
-      try {
-        await activeSound.stopAsync();
-        await activeSound.unloadAsync();
-      } catch {}
-      activeSound = null;
-    }
-
-    if (myGen !== soundGeneration) return;
-
-    // Read the user's chosen sound from settings
-    let soundFile: any = getSoundById(DEFAULT_SOUND_ID).file;
+    let soundFile: number = getSoundById(DEFAULT_SOUND_ID).file;
     try {
       const id = await getSetting(ALARM_SOUND_SETTING_KEY);
-      if (id) {
-        const s = SOUND_OPTIONS.find((o) => o.id === id);
-        if (s) soundFile = s.file;
-      }
-    } catch (e: any) {
-      // Fall back to default if DB read fails
+      const chosen = id ? SOUND_OPTIONS.find((o) => o.id === id) : undefined;
+      if (chosen) soundFile = chosen.file;
+    } catch {
+      // Fall back to the default sound if the settings read fails.
     }
 
-    const { sound } = await Audio.Sound.createAsync(soundFile, {
-      shouldPlay: true,
-      isLooping: true,
-      volume: 1.0,
-    });
+    if (myGen !== soundGeneration) return;
 
-    if (myGen !== soundGeneration) {
-      try {
-        await sound.stopAsync();
-        await sound.unloadAsync();
-      } catch {}
-      return;
-    }
-
-    activeSound = sound;
-    console.log(`[alarm] playing bundled alarm sound (gen ${myGen})`);
-  } catch (e: any) {
-    console.error(`[alarm] failed to play alarm sound: ${e?.message ?? e}`);
+    const player = createAudioPlayer(soundFile);
+    player.loop = true;
+    player.volume = 1.0;
+    player.play();
+    activeSound = player;
+  } catch (e: unknown) {
+    console.error(`[alarm] failed to play alarm sound: ${e instanceof Error ? e.message : String(e)}`);
   }
+}
+
+function releaseActiveSound(): void {
+  if (!activeSound) return;
+  try {
+    activeSound.pause();
+    activeSound.remove();
+  } catch {
+    // Already released.
+  }
+  activeSound = null;
 }
 
 /**
@@ -146,13 +141,7 @@ export async function playAlarmSound(): Promise<void> {
  */
 export async function stopAlarmSound(): Promise<void> {
   soundGeneration++;
-  if (activeSound) {
-    try {
-      await activeSound.stopAsync();
-      await activeSound.unloadAsync();
-    } catch {}
-    activeSound = null;
-  }
+  releaseActiveSound();
 }
 
 /**

@@ -12,7 +12,14 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Audio } from 'expo-av';
+import {
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  useAudioPlayer,
+  useAudioPlayerStatus,
+  useAudioRecorder,
+} from 'expo-audio';
 import { colors, radius, spacing, typography } from '../theme';
 
 interface Props {
@@ -28,54 +35,53 @@ export function VoiceRecorder({ onRecorded }: Props) {
   const [durationMs, setDurationMs] = useState(0);
   const [uri, setUri] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const recordingRef = useRef<Audio.Recording | null>(null);
-  const soundRef = useRef<Audio.Sound | null>(null);
+  // expo-audio hooks release the native recorder and player on unmount.
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const player = useAudioPlayer(null);
+  const playerStatus = useAudioPlayerStatus(player);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const startTimeRef = useRef(0);
+  const isRecordingRef = useRef(false);
 
   useEffect(() => {
     return () => {
-      // Cleanup on unmount
-      if (recordingRef.current) {
-        try { recordingRef.current.stopAndUnloadAsync(); } catch {}
-      }
-      if (soundRef.current) {
-        try { soundRef.current.unloadAsync(); } catch {}
-      }
       if (tickRef.current) clearInterval(tickRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (state === 'playing' && playerStatus.didJustFinish) setState('recorded');
+  }, [state, playerStatus.didJustFinish]);
+
+  const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
   const startRecording = async () => {
     setState('requesting-perm');
     setErrorMsg(null);
     try {
-      const perm = await Audio.requestPermissionsAsync();
+      const perm = await requestRecordingPermissionsAsync();
       if (!perm.granted) {
         setState('idle');
         setErrorMsg('Microphone permission denied. Enable it in Settings to record voice memos.');
         return;
       }
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
-      recordingRef.current = recording;
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      await recorder.prepareToRecordAsync();
+      recorder.record();
+      isRecordingRef.current = true;
+      startTimeRef.current = Date.now();
       setState('recording');
       setDurationMs(0);
-      const startTime = Date.now();
       tickRef.current = setInterval(() => {
-        const elapsed = Date.now() - startTime;
+        const elapsed = Date.now() - startTimeRef.current;
         setDurationMs(elapsed);
         if (elapsed >= MAX_DURATION_MS) {
           stopRecording();
         }
       }, 100);
-    } catch (e: any) {
+    } catch (e: unknown) {
       setState('error');
-      setErrorMsg(e?.message ?? String(e));
+      setErrorMsg(errorText(e));
     }
   };
 
@@ -84,43 +90,40 @@ export function VoiceRecorder({ onRecorded }: Props) {
       clearInterval(tickRef.current);
       tickRef.current = null;
     }
-    if (!recordingRef.current) return;
+    // Guard: the max-duration timer and the Stop button can both call this.
+    if (!isRecordingRef.current) return;
+    isRecordingRef.current = false;
+    // Measured here, not read from state: the interval's closure would see a stale value.
+    const elapsed = Math.min(Date.now() - startTimeRef.current, MAX_DURATION_MS);
     try {
-      await recordingRef.current.stopAndUnloadAsync();
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
-      const recordedUri = recordingRef.current.getURI();
-      recordingRef.current = null;
+      await recorder.stop();
+      await setAudioModeAsync({ allowsRecording: false });
+      const recordedUri = recorder.uri;
       if (recordedUri) {
         setUri(recordedUri);
+        setDurationMs(elapsed);
         setState('recorded');
-        onRecorded(recordedUri, durationMs);
+        onRecorded(recordedUri, elapsed);
       } else {
         setState('error');
         setErrorMsg('Recording finished but no file was produced.');
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       setState('error');
-      setErrorMsg(e?.message ?? String(e));
+      setErrorMsg(errorText(e));
     }
   };
 
   const playRecording = async () => {
     if (!uri) return;
     try {
+      player.replace({ uri });
+      await player.seekTo(0);
+      player.play();
       setState('playing');
-      const { sound } = await Audio.Sound.createAsync({ uri });
-      soundRef.current = sound;
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if (status.isLoaded && status.didJustFinish) {
-          setState('recorded');
-          sound.unloadAsync();
-          soundRef.current = null;
-        }
-      });
-      await sound.playAsync();
-    } catch (e: any) {
+    } catch (e: unknown) {
       setState('recorded');
-      setErrorMsg(e?.message ?? String(e));
+      setErrorMsg(errorText(e));
     }
   };
 

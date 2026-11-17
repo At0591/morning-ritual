@@ -60,12 +60,13 @@
     "plugins": [
       "expo-sqlite",
       [
-        "expo-av",
+        "expo-audio",
         {
           "microphonePermission": "Morning Ritual records your voice so you can prove you completed the day's task."
         }
       ],
-      "expo-font"
+      "expo-font",
+      "expo-asset"
     ],
     "extra": {
       "eas": {
