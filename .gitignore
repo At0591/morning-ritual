@@ -1,4 +1,4 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+﻿# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
 # dependencies
 node_modules/
@@ -41,6 +41,9 @@ yarn-error.*
 /android
 modules/*/android/build/
 modules/*/ios/build/
+# scratch output from local debugging
+*-out.txt
+*-output.txt
+out.txt
+trash-args*.json
 
- # Proprietary Data
-src/data/tasks.json
