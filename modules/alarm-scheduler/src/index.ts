@@ -19,7 +19,8 @@
 //   6. For the warm-start case (app in background but JS context alive),
 //      the AlarmFireReceiver emits an event to the JS layer
 
-import { NativeModule, requireNativeModule } from 'expo-modules-core';
+// SDK 58: import native-module helpers from 'expo', not 'expo-modules-core' directly.
+import { NativeModule, requireNativeModule } from 'expo';
 
 export type ScheduledNativeAlarm = {
   taskId: string;
