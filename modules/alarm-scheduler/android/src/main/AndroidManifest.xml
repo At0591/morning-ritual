@@ -6,6 +6,8 @@
   <uses-permission android:name="android.permission.WAKE_LOCK" />
   <uses-permission android:name="android.permission.VIBRATE" />
   <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+  <!-- Lets AlarmRingService open the wake-up screen on skins that reject full-screen intents. -->
+  <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
   <application>
     <!--
       Broadcast receivers for the alarm scheduler. AlarmFireReceiver is the

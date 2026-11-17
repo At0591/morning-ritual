@@ -20,6 +20,7 @@ import android.os.PowerManager
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.provider.Settings
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
@@ -76,6 +77,7 @@ class AlarmRingService : Service() {
       acquireWakeLock()
       startSound(soundUri)
       startVibration()
+      openWakeScreenIfAllowed(taskId)
     }
     handler.removeCallbacks(autoStop)
     handler.postDelayed(autoStop, MAX_RING_MS)
@@ -166,6 +168,30 @@ class AlarmRingService : Service() {
     }
   }
 
+  /**
+   * Backup for skins (OriginOS, MIUI) that reject full-screen intents even
+   * when the user allowed them: with "Display over other apps" an app may
+   * start an activity from the background, so open the wake-up screen
+   * directly. AlarmSchedulerPackage makes it show over the lock screen.
+   */
+  private fun openWakeScreenIfAllowed(taskId: String) {
+    if (!Settings.canDrawOverlays(this)) return
+    try {
+      startActivity(buildOpenIntent(taskId))
+      Log.i(TAG, "opened wake screen directly")
+    } catch (e: Exception) {
+      Log.w(TAG, "could not open wake screen directly: ${e.message}")
+    }
+  }
+
+  private fun buildOpenIntent(taskId: String): Intent =
+    (packageManager.getLaunchIntentForPackage(packageName) ?: Intent())
+      .apply {
+        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        putExtra(AlarmSchedulerModule.EXTRA_FROM_ALARM, true)
+        putExtra(AlarmSchedulerModule.EXTRA_TASK_ID, taskId)
+      }
+
   private fun notificationManager(): NotificationManager =
     getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
@@ -181,14 +207,8 @@ class AlarmRingService : Service() {
       notificationManager().createNotificationChannel(channel)
     }
 
-    val openIntent = (packageManager.getLaunchIntentForPackage(packageName) ?: Intent())
-      .apply {
-        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
-        putExtra(AlarmSchedulerModule.EXTRA_FROM_ALARM, true)
-        putExtra(AlarmSchedulerModule.EXTRA_TASK_ID, taskId)
-      }
     val openPi = PendingIntent.getActivity(
-      this, REQUEST_CODE_OPEN, openIntent,
+      this, REQUEST_CODE_OPEN, buildOpenIntent(taskId),
       PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
     )
 

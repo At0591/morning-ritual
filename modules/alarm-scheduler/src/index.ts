@@ -45,6 +45,8 @@ type NativeAlarmSchedulerModule = NativeModule<{
   canUseFullScreenIntent(): Promise<boolean>;
   openFullScreenIntentSettings(): Promise<boolean>;
   setShowWhenLocked(show: boolean): Promise<boolean>;
+  canDrawOverlays(): Promise<boolean>;
+  openOverlaySettings(): Promise<boolean>;
 };
 
 export type ScheduleParams = {
@@ -83,6 +85,11 @@ export const AlarmScheduler = {
 
   /** Show the app over the lock screen (on during the morning flow, off after). */
   setShowWhenLocked: (show: boolean): Promise<boolean> => nativeModule.setShowWhenLocked(show),
+
+  /** "Display over other apps": lets the ringer open the wake-up screen itself. */
+  canDrawOverlays: (): Promise<boolean> => nativeModule.canDrawOverlays(),
+
+  openOverlaySettings: (): Promise<boolean> => nativeModule.openOverlaySettings(),
 
   cancelAlarm: (taskId: string): Promise<void> =>
     nativeModule.cancelAlarm(taskId),

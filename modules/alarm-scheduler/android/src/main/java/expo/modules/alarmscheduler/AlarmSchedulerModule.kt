@@ -338,6 +338,37 @@ class AlarmSchedulerModule : Module() {
       }
     }
 
+    // --- "Display over other apps" (lets the ringer open the wake-up screen) ---
+    // Some skins (OriginOS, MIUI) reject full-screen intents even when allowed;
+    // with this permission AlarmRingService can start the activity itself.
+
+    AsyncFunction("canDrawOverlays") { promise: Promise ->
+      val context = appContext.reactContext
+        ?: return@AsyncFunction promise.resolve(false)
+      promise.resolve(Settings.canDrawOverlays(context))
+    }
+
+    AsyncFunction("openOverlaySettings") { promise: Promise ->
+      val context = appContext.reactContext
+        ?: return@AsyncFunction promise.resolve(false)
+      val pkgUri = Uri.parse("package:${context.packageName}")
+      try {
+        val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, pkgUri)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        context.startActivity(intent)
+        promise.resolve(true)
+      } catch (_: Exception) {
+        try {
+          val fallback = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, pkgUri)
+          fallback.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+          context.startActivity(fallback)
+          promise.resolve(true)
+        } catch (_: Exception) {
+          promise.resolve(false)
+        }
+      }
+    }
+
     // --- Show over the lock screen while the morning flow is active ---
 
     AsyncFunction("setShowWhenLocked") { show: Boolean, promise: Promise ->

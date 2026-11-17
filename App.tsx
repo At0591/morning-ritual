@@ -68,6 +68,8 @@ import {
   addNativeAlarmListener,
   canShowFullScreenAlarm,
   openFullScreenAlarmSettings,
+  canOpenWakeScreenOverLockScreen,
+  openDisplayOverAppsSettings,
 } from './src/services/alarm';
 import { scheduleBedtimeReminder, cancelBedtimeReminder } from './src/services/bedtime';
 import {
@@ -124,6 +126,21 @@ export default function App() {
   const [alarmSoundHelpDismissed, setAlarmSoundHelpDismissed] = useState(false);
   // Android 14+: can the alarm open full screen over the lock screen?
   const [fullScreenOk, setFullScreenOk] = useState(true);
+  // Android: "Display over other apps", the reliable route on OriginOS/MIUI.
+  const [overlayOk, setOverlayOk] = useState(true);
+
+  const refreshLockScreenAccess = async () => {
+    const [fullScreen, overlay] = await Promise.all([canShowFullScreenAlarm(), canOpenWakeScreenOverLockScreen()]);
+    setFullScreenOk(fullScreen);
+    setOverlayOk(overlay);
+    return { fullScreen, overlay };
+  };
+
+  // Send the user to whichever lock-screen permission is still missing.
+  const onFixLockScreenAccess = async () => {
+    if (!overlayOk) await openDisplayOverAppsSettings();
+    else await openFullScreenAlarmSettings();
+  };
   // A ringing alarm that asked for the wake screen before navigation was ready
   // (during startup the loading screen is shown, so navigate() would no-op).
   const pendingWakeRef = useRef(false);
@@ -140,7 +157,7 @@ export default function App() {
   // (for example from the system settings screen).
   useEffect(() => {
     const sub = AppState.addEventListener('change', async (state) => {
-      if (state === 'active') setFullScreenOk(await canShowFullScreenAlarm());
+      if (state === 'active') await refreshLockScreenAccess();
     });
     return () => sub.remove();
   }, []);
@@ -182,7 +199,7 @@ export default function App() {
         if (restore.coldStartFired) {
           goToWake();
         }
-        setFullScreenOk(await canShowFullScreenAlarm());
+        await refreshLockScreenAccess();
         await initSubscriptionService();
         const subStatus = await getSubscriptionStatus();
         setSubscriptionTier(subStatus.tier);
@@ -685,13 +702,13 @@ export default function App() {
           )}
         </View>
 
-        {alarmStatus === 'scheduled' && !fullScreenOk ? (
+        {alarmStatus === 'scheduled' && (!overlayOk || !fullScreenOk) ? (
           <View style={[styles.alarmRow, styles.alarmRowWarn]}>
             <View style={{ flex: 1 }}>
               <Text style={styles.alarmLabel}>One more permission</Text>
               <Text style={styles.alarmValue}>Let your alarm open over the lock screen.</Text>
             </View>
-            <TouchableOpacity style={styles.smallBtn} onPress={openFullScreenAlarmSettings} accessibilityRole="button">
+            <TouchableOpacity style={styles.smallBtn} onPress={onFixLockScreenAccess} accessibilityRole="button">
               <Text style={styles.smallBtnText}>Allow</Text>
             </TouchableOpacity>
           </View>
@@ -779,11 +796,21 @@ export default function App() {
                   // ask for notification permission while the user is engaged.
                   await resyncAlarms(true, result.task);
                   setShowOnboarding(false);
-                  // Android 14+: the alarm can only open over the lock screen if
-                  // the user allows full-screen notifications. Ask now, in context.
-                  const canFullScreen = await canShowFullScreenAlarm();
-                  setFullScreenOk(canFullScreen);
-                  if (!canFullScreen) {
+                  // Android: ask in context for what lets the alarm open over the
+                  // lock screen. "Display over other apps" first: some skins
+                  // (OriginOS, MIUI) reject full-screen notifications even when
+                  // allowed, and report them as allowed.
+                  const access = await refreshLockScreenAccess();
+                  if (!access.overlay) {
+                    Alert.alert(
+                      'Let your alarm wake you properly',
+                      'Allow Morning Ritual to display over other apps. When your alarm rings, it can then open your morning ritual over the lock screen instead of hiding in your notifications.',
+                      [
+                        { text: 'Not now', style: 'cancel' },
+                        { text: 'Allow', onPress: () => openDisplayOverAppsSettings() },
+                      ]
+                    );
+                  } else if (!access.fullScreen) {
                     Alert.alert(
                       'Let your alarm wake you properly',
                       'Allow Morning Ritual to show full-screen notifications, so your alarm opens over the lock screen instead of hiding in your notifications.',

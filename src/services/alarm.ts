@@ -190,6 +190,29 @@ export async function openFullScreenAlarmSettings(): Promise<void> {
   }
 }
 
+/**
+ * Android: can the ringer open the wake-up screen by itself? Needs "Display
+ * over other apps", because some skins (OriginOS, MIUI) reject full-screen
+ * intents even when the user allowed them.
+ */
+export async function canOpenWakeScreenOverLockScreen(): Promise<boolean> {
+  if (Platform.OS !== 'android') return true;
+  try {
+    return await AlarmScheduler.canDrawOverlays();
+  } catch {
+    return true;
+  }
+}
+
+export async function openDisplayOverAppsSettings(): Promise<void> {
+  if (Platform.OS !== 'android') return;
+  try {
+    await AlarmScheduler.openOverlaySettings();
+  } catch {
+    // Ignore; the home screen keeps showing the warning.
+  }
+}
+
 /** Android: subscribe to alarms firing while the app is already running. */
 export function addNativeAlarmListener(onFire: () => void): () => void {
   if (Platform.OS !== 'android') return () => {};
