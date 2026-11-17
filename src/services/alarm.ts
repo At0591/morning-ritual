@@ -403,16 +403,34 @@ export async function cancelAlarm(_notificationId: string): Promise<void> {
   }
 }
 
-export async function cancelAllAlarms(): Promise<void> {
+/**
+ * Remove every scheduled alarm (native AlarmManager entries, alarm
+ * notifications and the SQLite queue) without touching a sound that is
+ * ringing right now or other notifications such as the bedtime reminder.
+ * Called before each new schedule so only one alarm is ever queued: alarm IDs
+ * are unique per schedule and the in-memory activeAlarmId is lost on restart.
+ */
+export async function clearScheduledAlarms(): Promise<void> {
   await cancelActiveAlarmInternal();
-  await stopAlarmSound();
   if (Platform.OS === 'android') {
     try {
       await AlarmScheduler.cancelAllAlarms();
     } catch {}
   }
-  await Notifications.cancelAllScheduledNotificationsAsync();
+  try {
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+    for (const n of scheduled) {
+      if (n.content.data?.type === 'alarm') {
+        await Notifications.cancelScheduledNotificationAsync(n.identifier);
+      }
+    }
+  } catch {}
   await clearPendingAlarms();
+}
+
+export async function cancelAllAlarms(): Promise<void> {
+  await clearScheduledAlarms();
+  await stopAlarmSound();
 }
 
 async function displayAlarmNotification(alarm: ScheduledAlarm): Promise<void> {

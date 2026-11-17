@@ -9,9 +9,11 @@ interface Props {
   onBack: () => void;
   onEditAlarm: (id: string) => void;
   onCreateAlarm: () => void;
+  /** Called after an alarm is switched on or off, so it can be (un)scheduled. */
+  onChanged: () => void;
 }
 
-export function AlarmsListScreen({ onBack, onEditAlarm, onCreateAlarm }: Props) {
+export function AlarmsListScreen({ onBack, onEditAlarm, onCreateAlarm, onChanged }: Props) {
   const [alarms, setAlarms] = useState<Alarm[]>([]);
   const [loading, setLoading] = useState(true);
   const isFocused = useIsFocused();
@@ -36,6 +38,7 @@ export function AlarmsListScreen({ onBack, onEditAlarm, onCreateAlarm }: Props) 
   const toggleAlarm = async (id: string, enabled: boolean) => {
     await updateAlarm(id, { enabled });
     loadAlarms();
+    onChanged();
   };
 
   const formatDays = (days: number[]) => {

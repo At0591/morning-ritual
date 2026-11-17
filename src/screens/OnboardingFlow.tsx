@@ -18,7 +18,7 @@ import Animated, { FadeInRight } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { colors, radius, spacing, typography } from '../theme';
-import { setSetting } from '../db/database';
+import { addAlarm, getAllAlarms, setSetting } from '../db/database';
 import { trackEvent, trackOnboardingStart, trackOnboardingComplete } from '../services/analytics';
 
 interface Props {
@@ -56,6 +56,18 @@ export function OnboardingFlow({ onComplete }: Props) {
       const hh = String(selectedTime.getHours()).padStart(2, '0');
       const mm = String(selectedTime.getMinutes()).padStart(2, '0');
       await setSetting('alarm_time', `${hh}:${mm}`);
+      // Create the first real alarm (every day) from the chosen time. Before,
+      // onboarding only saved a setting, so new users finished with no alarm.
+      if ((await getAllAlarms()).length === 0) {
+        await addAlarm({
+          id: `alarm-${Date.now()}`,
+          time: `${hh}:${mm}`,
+          days: [0, 1, 2, 3, 4, 5, 6],
+          enabled: true,
+          soundId: null,
+          smartWakeWindow: 0,
+        });
+      }
     } catch (e) {
       console.warn('Failed to save onboarding settings:', e);
     }

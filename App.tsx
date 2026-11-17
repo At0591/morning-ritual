@@ -48,7 +48,8 @@ import {
   getAllAlarms,
   Alarm
 } from './src/db/database';
-import { getNextAlarmOccurrence } from './src/services/scheduleHelper';
+import { describeNextAlarm, type NextAlarm } from './src/services/scheduleHelper';
+import { syncAlarms, type AlarmSyncResult } from './src/services/alarmSync';
 import { nextStreak } from './src/services/streak';
 import { localDateKey } from './src/utils/dates';
 import { pickDailyTask, PickResult } from './src/services/dailyPick';
@@ -105,9 +106,8 @@ export default function App() {
   const [chains, setChains] = useState<HabitChain[]>([]);
   const [history, setHistory] = useState<DayHistory[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [scheduledFor, setScheduledFor] = useState<Date | null>(null);
-  const [scheduling, setScheduling] = useState(false);
-  const [nextAlarm, setNextAlarm] = useState<{ alarm: Alarm; date: Date } | null>(null);
+  const [nextAlarm, setNextAlarm] = useState<NextAlarm | null>(null);
+  const [alarmStatus, setAlarmStatus] = useState<AlarmSyncResult['status'] | null>(null);
   const [currentHistoryId, setCurrentHistoryId] = useState<number | null>(null);
   const [lastStreakCount, setLastStreakCount] = useState(0);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -177,8 +177,9 @@ export default function App() {
         setChains(c);
         const h = await getStreakHistory(7);
         setHistory(h);
-        const alarmsData = await getAllAlarms();
-        setNextAlarm(getNextAlarmOccurrence(alarmsData));
+        // Make sure the OS has the next alarm queued. No permission prompt here:
+        // the home screen shows a clear "Allow" action if it's needed.
+        applySyncResult(await syncAlarms(result.task));
         if (s.totalCompleted === 0) {
           setShowOnboarding(true);
         }
@@ -199,47 +200,40 @@ export default function App() {
     setChains(c);
     const h = await getStreakHistory(7);
     setHistory(h);
-    const alarmsData = await getAllAlarms();
-    setNextAlarm(getNextAlarmOccurrence(alarmsData));
   };
 
-  const onSchedule = async () => {
-    if (!pick || !nextAlarm) {
-      if (!nextAlarm) Alert.alert('No enabled alarms', 'Please create and enable an alarm first.');
-      return;
-    }
-    setScheduling(true);
-    try {
-      const fireAt = nextAlarm.date;
-      const historyId = await recordAlarmFire(pick.task.id, new Date().toISOString());
-      setCurrentHistoryId(historyId);
-      const windowToUse = nextAlarm.alarm.smartWakeWindow;
-      await scheduleAlarm(fireAt, pick.task.id, pick.task.text, windowToUse);
-      setScheduledFor(fireAt);
+  function applySyncResult(result: AlarmSyncResult) {
+    setAlarmStatus(result.status);
+    setNextAlarm(result.status === 'none' ? null : result.next);
+    if (result.status === 'scheduled') {
       trackAlarmScheduled({
-        time: fireAt.toISOString(),
-        taskTheme: pick.task.theme,
-        smartWakeWindow: windowToUse,
+        time: result.next.date.toISOString(),
+        taskTheme: 'n/a',
+        smartWakeWindow: result.next.alarm.smartWakeWindow,
       });
-      const now = new Date();
-      const secondsUntil = Math.round((fireAt.getTime() - now.getTime()) / 1000);
-      Alert.alert(
-        '✓ Alarm set',
-        `For ${fireAt.toLocaleString()}\n` +
-        `(${secondsUntil}s from now)\n\n` +
-        `If it doesn't fire:\n` +
-        `• Tap "List scheduled" to verify the OS has it\n` +
-        `• Check Settings → Apps → Morning Ritual → Notifications ON\n` +
-        `• Some phones (Xiaomi/OnePlus/Realme) need "Auto-start" enabled`
-      );
-    } catch (e: any) {
-      setError(e?.message ?? String(e));
-      Alert.alert(
-        '⚠️ Alarm not set',
-        `${e?.message ?? 'Unknown error'}\n\nIf you see "use a development build", grant notification permission in:\nSettings → Apps → Morning Ritual → Notifications`
-      );
-    } finally {
-      setScheduling(false);
+    } else if (result.status === 'error') {
+      console.warn(`[alarm] could not schedule: ${result.message}`);
+    }
+  }
+
+  /**
+   * Re-schedule the next alarm with the OS. Called after any alarm change and
+   * after each morning. `askPermission` is true when the user has just acted,
+   * so a permission prompt appears in context.
+   */
+  const resyncAlarms = async (askPermission: boolean, ritual: Task | undefined = pick?.task) => {
+    if (!ritual) return;
+    applySyncResult(await syncAlarms(ritual, { askPermission }));
+  };
+
+  // "Allow" on the home-screen warning: ask once, then send the user to the
+  // app's settings page if Android won't show the prompt again.
+  const onFixAlarmPermission = async () => {
+    if (!pick) return;
+    const result = await syncAlarms(pick.task, { askPermission: true });
+    applySyncResult(result);
+    if (result.status === 'needs-permission') {
+      await onOpenNotificationSettings();
     }
   };
 
@@ -255,10 +249,13 @@ export default function App() {
   };
 
   const onComplete = async (verificationData: { kind: string; [k: string]: unknown }) => {
-    if (!pick || !streak || !currentHistoryId) return;
+    if (!pick || !streak) return;
     try {
       const now = new Date().toISOString();
-      await recordCompletion(currentHistoryId, now, 'completed', verificationData);
+      // A real alarm opens the app straight into the wake flow, so there may
+      // be no history row yet; without one the completion was silently dropped.
+      const historyId = currentHistoryId ?? (await recordAlarmFire(pick.task.id, now));
+      await recordCompletion(historyId, now, 'completed', verificationData);
       trackTaskCompleted({
         taskTheme: pick.task.theme,
         verificationMode: pick.task.verification,
@@ -290,6 +287,8 @@ export default function App() {
       setPick(tomorrowPick);
       const newTomorrow = await pickDailyTask({ tier: subscriptionTier, theme: preferredTheme ?? undefined });
       setTomorrowPick(newTomorrow);
+      // Queue the next ring (tomorrow, next weekday...) with tomorrow's ritual.
+      await resyncAlarms(false, (tomorrowPick ?? pick).task);
       navigationRef.isReady() && navigationRef.navigate('Success');
     } catch (e: any) {
       setError(e?.message ?? String(e));
@@ -306,6 +305,7 @@ export default function App() {
     // User gave up on the task — silence the alarm so it doesn't keep
     // ringing while they go back to the home screen.
     await stopAlarmSound();
+    await resyncAlarms(false);
     navigationRef.isReady() && navigationRef.navigate('Home');
   };
 
@@ -614,29 +614,46 @@ export default function App() {
           </Text>
         </View>
 
-        <View style={styles.alarmRow}>
-          <Text style={styles.alarmLabel}>Wake me at</Text>
-          <TouchableOpacity style={styles.timeButton} onPress={() => navigationRef.isReady() && navigationRef.navigate('AlarmsList')}>
-            <Text style={styles.timeButtonText}>
-              {nextAlarm ? nextAlarm.date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Set alarms'}
+        {/* Alarm status: always says whether the OS really has an alarm queued. */}
+        <View style={[styles.alarmRow, alarmStatus === 'needs-permission' || alarmStatus === 'error' ? styles.alarmRowWarn : null]}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.alarmLabel}>
+              {alarmStatus === 'scheduled' && nextAlarm
+                ? 'Next alarm'
+                : alarmStatus === 'needs-permission'
+                ? "Your alarm can't ring yet"
+                : alarmStatus === 'error'
+                ? "Couldn't set your alarm"
+                : 'No alarm on'}
             </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.smallBtn, (scheduling || scheduledFor || !nextAlarm) && styles.smallBtnDisabled]}
-            onPress={onSchedule}
-            disabled={scheduling || scheduledFor !== null || !nextAlarm}
-          >
-            <Text style={styles.smallBtnText}>
-              {scheduling ? '…' : scheduledFor ? '✓' : 'Set'}
+            <Text style={styles.alarmValue}>
+              {alarmStatus === 'scheduled' && nextAlarm
+                ? describeNextAlarm(nextAlarm.date)
+                : alarmStatus === 'needs-permission'
+                ? 'Allow notifications so it can wake you.'
+                : alarmStatus === 'error'
+                ? 'Tap Retry, or check alarm permissions in Settings.'
+                : 'Add one to wake up with a ritual.'}
             </Text>
-          </TouchableOpacity>
+          </View>
+          {alarmStatus === 'needs-permission' ? (
+            <TouchableOpacity style={styles.smallBtn} onPress={onFixAlarmPermission} accessibilityRole="button">
+              <Text style={styles.smallBtnText}>Allow</Text>
+            </TouchableOpacity>
+          ) : alarmStatus === 'error' ? (
+            <TouchableOpacity style={styles.smallBtn} onPress={() => resyncAlarms(true)} accessibilityRole="button">
+              <Text style={styles.smallBtnText}>Retry</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.timeButton}
+              onPress={() => navigationRef.isReady() && navigationRef.navigate('AlarmsList')}
+              accessibilityRole="button"
+            >
+              <Text style={styles.timeButtonText}>{nextAlarm ? 'Edit' : 'Add alarm'}</Text>
+            </TouchableOpacity>
+          )}
         </View>
-
-        {scheduledFor ? (
-          <Text style={styles.scheduledFor}>
-            Alarm set for {scheduledFor.toLocaleString()}
-          </Text>
-        ) : null}
 
         <TouchableOpacity style={styles.cta} onPress={onRevealNow} activeOpacity={0.85}>
           <Text style={styles.ctaText}>Reveal today's task</Text>
@@ -703,13 +720,14 @@ export default function App() {
                 onComplete={async () => {
                   const theme = await getSetting('preferred_theme');
                   setPreferredTheme(theme);
-                  const alarmsData = await getAllAlarms();
-                  setNextAlarm(getNextAlarmOccurrence(alarmsData));
                   const result = await pickDailyTask({
                     tier: subscriptionTier,
                     theme: theme ?? undefined,
                   });
                   setPick(result);
+                  // Onboarding just created the first alarm: schedule it now and
+                  // ask for notification permission while the user is engaged.
+                  await resyncAlarms(true, result.task);
                   setShowOnboarding(false);
                 }}
               />
@@ -730,7 +748,6 @@ export default function App() {
                     scheduleAlarm(snoozeFor, pick.task.id, pick.task.text, 0).catch(e => console.error(e));
                     trackTaskSnoozed({ taskTheme: pick.task.theme, snoozeDurationMins: 5 });
                     navigationRef.isReady() && navigationRef.navigate('Home');
-                    setScheduledFor(snoozeFor);
                     Alert.alert('Snoozed', "Back to sleep. We'll try again in 5 minutes.");
                   }}
                 />
@@ -787,6 +804,7 @@ export default function App() {
               {() => (
                 <AlarmsListScreen
                   onBack={() => navigationRef.isReady() && navigationRef.goBack()}
+                  onChanged={() => resyncAlarms(true)}
                   onCreateAlarm={() => {
                     setEditingAlarmId(null);
                     navigationRef.isReady() && navigationRef.navigate('EditAlarm');
@@ -803,9 +821,10 @@ export default function App() {
                 <EditAlarmScreen
                   alarmId={editingAlarmId}
                   onBack={() => navigationRef.isReady() && navigationRef.goBack()}
-                  onSave={() => {
-                    // Force refresh or re-schedule here later
+                  onSave={async () => {
                     navigationRef.isReady() && navigationRef.goBack();
+                    // Saving or deleting an alarm schedules (or clears) it straight away.
+                    await resyncAlarms(true);
                   }}
                 />
               )}
@@ -975,10 +994,20 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     marginBottom: spacing.md,
   },
+  alarmRowWarn: {
+    backgroundColor: '#FFF3E0',
+    borderWidth: 1,
+    borderColor: colors.warning,
+  },
   alarmLabel: {
-    ...typography.body,
+    ...typography.caption,
+    color: colors.sand,
+  },
+  alarmValue: {
+    ...typography.bodyBold,
     color: colors.ink,
-    flex: 1,
+    marginTop: 2,
+    marginRight: spacing.sm,
   },
   timeButton: {
     ...typography.bodyBold,
