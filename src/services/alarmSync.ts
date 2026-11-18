@@ -8,7 +8,7 @@
 
 import * as Notifications from 'expo-notifications';
 import { getAllAlarms } from '../db/database';
-import { clearScheduledAlarms, scheduleAlarm } from './alarm';
+import { clearScheduledAlarms, rebookPendingCheckIn, scheduleAlarm } from './alarm';
 import { getNextAlarmOccurrence, type NextAlarm } from './scheduleHelper';
 
 export type AlarmSyncResult =
@@ -40,6 +40,8 @@ export function syncAlarms(
     if (!next) {
       // Leaves a currently ringing alarm alone; only future alarms are removed.
       await clearScheduledAlarms();
+      // Clearing removes a pending "Still up?" too; put it back if it's still due.
+      await rebookPendingCheckIn();
       return { status: 'none' };
     }
 
@@ -52,6 +54,7 @@ export function syncAlarms(
       // Exactly one alarm queued at a time, whatever was scheduled before.
       await clearScheduledAlarms();
       await scheduleAlarm(next.date, ritual.id, ritual.text, next.alarm.smartWakeWindow);
+      await rebookPendingCheckIn();
       return { status: 'scheduled', next };
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);

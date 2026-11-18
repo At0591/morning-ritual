@@ -20,6 +20,9 @@ jest.mock('../alarm', () => ({
     mockCalls.push(`schedule ${date.getHours()}:${date.getMinutes()}`);
     return 'id';
   }),
+  rebookPendingCheckIn: jest.fn(async () => {
+    mockCalls.push('rebook check-in');
+  }),
 }));
 
 import { syncAlarms } from '../alarmSync';
@@ -39,14 +42,14 @@ beforeEach(() => {
 test('no enabled alarm clears anything queued and reports none', async () => {
   mockAlarms.push(everyDay('07:00', false));
   await expect(syncAlarms(ritual)).resolves.toEqual({ status: 'none' });
-  expect(mockCalls).toEqual(['clear']);
+  expect(mockCalls).toEqual(['clear', 'rebook check-in']);
 });
 
-test('clears old alarms before scheduling the next one, so only one is ever queued', async () => {
+test('clears old alarms before scheduling the next one, then puts back a due "Still up?"', async () => {
   mockAlarms.push(everyDay('07:00'));
   const result = await syncAlarms(ritual);
   expect(result.status).toBe('scheduled');
-  expect(mockCalls).toEqual(['clear', 'schedule 7:0']);
+  expect(mockCalls).toEqual(['clear', 'schedule 7:0', 'rebook check-in']);
 });
 
 test('without permission it reports needs-permission and does not prompt or schedule', async () => {
@@ -75,5 +78,5 @@ test('other scheduling failures are reported, not thrown', async () => {
 test('overlapping calls run one after another', async () => {
   mockAlarms.push(everyDay('07:00'));
   await Promise.all([syncAlarms(ritual), syncAlarms(ritual)]);
-  expect(mockCalls).toEqual(['clear', 'schedule 7:0', 'clear', 'schedule 7:0']);
+  expect(mockCalls).toEqual(['clear', 'schedule 7:0', 'rebook check-in', 'clear', 'schedule 7:0', 'rebook check-in']);
 });

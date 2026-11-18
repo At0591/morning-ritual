@@ -3,7 +3,8 @@ import { useState } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
-import type { DayHistory, HabitChain, Streak } from '../db/database';
+import type { DayHistory, HabitChain, JournalEntry, Streak } from '../db/database';
+import { HorizonMark } from '../components/HorizonMark';
 import type { PickResult } from '../services/dailyPick';
 import { describeNextAlarm, type NextAlarm } from '../services/scheduleHelper';
 import type { AlarmSyncResult } from '../services/alarmSync';
@@ -13,13 +14,14 @@ import { OnboardingCard } from '../components/OnboardingCard';
 import { DebugPanel } from '../components/DebugPanel';
 import { getTodayAffirmation } from '../data/affirmations';
 import { navigate } from '../navigation/navigation';
-import { colors, radius, spacing, typography, themeEmoji } from '../theme';
+import { brand, colors, radius, spacing, typography, themeEmoji } from '../theme';
 
 type Props = {
   pick: PickResult;
   streak: Streak;
   chains: HabitChain[];
   history: DayHistory[];
+  journal: JournalEntry[];
   alarmStatus: AlarmSyncResult['status'] | null;
   nextAlarm: NextAlarm | null;
   lockScreenAccessMissing: boolean;
@@ -38,6 +40,7 @@ export function HomeScreen({
   streak,
   chains,
   history,
+  journal,
   alarmStatus,
   nextAlarm,
   lockScreenAccessMissing,
@@ -61,7 +64,8 @@ export function HomeScreen({
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
       <View style={styles.headerRow}>
-        <View>
+        <View style={styles.brandCol}>
+          <HorizonMark size={34} sunColor="#E89A2E" lineColor={brand.ink} />
           <Text style={styles.greeting}>Good morning</Text>
           <Text style={styles.appName}>Morning Ritual</Text>
         </View>
@@ -200,6 +204,18 @@ export function HomeScreen({
         </View>
       ) : null}
 
+      {journal.length > 0 ? (
+        <View style={styles.card}>
+          <Text style={styles.cardLabel}>YOUR JOURNAL</Text>
+          {journal.slice(0, 3).map((e) => (
+            <View key={e.id} style={styles.journalRow}>
+              <Text style={styles.journalText}>{e.text}</Text>
+              <Text style={styles.journalDate}>{e.dateKey}</Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
+
       <TouchableOpacity style={styles.cta} onPress={onRevealNow} activeOpacity={0.85}>
         <Text style={styles.ctaText}>Reveal today's task</Text>
       </TouchableOpacity>
@@ -230,6 +246,10 @@ export function HomeScreen({
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  brandCol: { flexShrink: 1, gap: 2 },
+  journalRow: { paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.divider },
+  journalText: { ...typography.body, color: colors.ink },
+  journalDate: { ...typography.caption, color: colors.sand, marginTop: 2 },
   scroll: {
     flex: 1,
     backgroundColor: colors.cream,
@@ -261,7 +281,7 @@ const styles = StyleSheet.create({
   streakBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF3E0',
+    backgroundColor: '#FBEFDD',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: radius.full,
@@ -328,7 +348,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   alarmRowWarn: {
-    backgroundColor: '#FFF3E0',
+    backgroundColor: '#FBEFDD',
     borderWidth: 1,
     borderColor: colors.warning,
   },
@@ -396,12 +416,12 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   affirmationCard: {
-    backgroundColor: '#FFF3E0',
+    backgroundColor: '#FBEFDD',
     borderRadius: radius.md,
     padding: spacing.md,
     marginBottom: spacing.md,
     borderWidth: 1,
-    borderColor: '#FFE0B2',
+    borderColor: '#EFDDBF',
   },
   affirmationLabel: {
     ...typography.micro,
@@ -417,12 +437,12 @@ const styles = StyleSheet.create({
   alarmHelpCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF3E0',
+    backgroundColor: '#FBEFDD',
     borderRadius: radius.md,
     padding: spacing.md,
     marginBottom: spacing.md,
     borderWidth: 1,
-    borderColor: '#FFB74D',
+    borderColor: '#E3B26A',
   },
   alarmHelpTitle: {
     ...typography.bodyBold,

@@ -49,7 +49,50 @@ class AlarmRingService : Service() {
   private val handler = Handler(Looper.getMainLooper())
   private val autoStop = Runnable { stopRingingAndSelf() }
 
+  // Gentle start: the tone begins quiet and rises to full over RAMP_MS.
+  // While the user does the wake check it drops to a whisper (quiet mode).
+  private var volume = START_VOLUME
+  private var quiet = false
+  private val rampStep = object : Runnable {
+    override fun run() {
+      if (quiet) return
+      volume = (volume + RAMP_INCREMENT).coerceAtMost(1f)
+      applyVolume(volume)
+      if (volume < 1f) handler.postDelayed(this, RAMP_TICK_MS)
+    }
+  }
+
+  override fun onCreate() {
+    super.onCreate()
+    instance = this
+  }
+
   override fun onBind(intent: Intent?): IBinder? = null
+
+  private fun applyVolume(v: Float) {
+    try {
+      player?.setVolume(v, v)
+    } catch (_: Exception) {
+    }
+  }
+
+  /** Quiet while the wake check is on screen; back to rising if it's left alone. */
+  fun applyQuiet(on: Boolean) {
+    handler.post {
+      if (!isRinging || quiet == on) return@post
+      quiet = on
+      handler.removeCallbacks(rampStep)
+      if (on) {
+        applyVolume(QUIET_VOLUME)
+        vibrator?.cancel()
+        vibrator = null
+      } else {
+        applyVolume(volume)
+        startVibration()
+        if (volume < 1f) handler.postDelayed(rampStep, RAMP_TICK_MS)
+      }
+    }
+  }
 
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
     val taskId = intent?.getStringExtra(AlarmSchedulerModule.EXTRA_TASK_ID) ?: "alarm"
@@ -86,6 +129,7 @@ class AlarmRingService : Service() {
 
   override fun onDestroy() {
     releaseEverything()
+    if (instance === this) instance = null
     super.onDestroy()
   }
 
@@ -97,6 +141,9 @@ class AlarmRingService : Service() {
 
   private fun releaseEverything() {
     handler.removeCallbacks(autoStop)
+    handler.removeCallbacks(rampStep)
+    quiet = false
+    volume = START_VOLUME
     try {
       player?.stop()
     } catch (_: Exception) {
@@ -128,9 +175,13 @@ class AlarmRingService : Service() {
         mp.setDataSource(this, uri)
         mp.isLooping = true
         mp.prepare()
+        volume = START_VOLUME
+        mp.setVolume(volume, volume)
         mp.start()
         player = mp
-        Log.i(TAG, "ringing with $uri")
+        handler.removeCallbacks(rampStep)
+        handler.postDelayed(rampStep, RAMP_TICK_MS)
+        Log.i(TAG, "ringing with $uri (rising from $START_VOLUME over ${RAMP_MS / 1000}s)")
         return
       } catch (e: Exception) {
         Log.w(TAG, "could not play $uri: ${e.message}")
@@ -237,6 +288,22 @@ class AlarmRingService : Service() {
     private const val REQUEST_CODE_OPEN = 2002
     /** Safety net: stop ringing after 10 minutes even if nobody responds. */
     const val MAX_RING_MS = 10 * 60 * 1000L
+
+    // Gentle start: 15% of the alarm volume, rising to 100% over 30 seconds.
+    private const val START_VOLUME = 0.15f
+    private const val QUIET_VOLUME = 0.06f
+    private const val RAMP_MS = 30_000L
+    private const val RAMP_TICK_MS = 1_000L
+    private const val RAMP_INCREMENT = (1f - START_VOLUME) / (RAMP_MS / RAMP_TICK_MS)
+
+    @Volatile
+    private var instance: AlarmRingService? = null
+
+    /** Drop to a whisper while the wake check is on screen (or undo it). */
+    @JvmStatic
+    fun setQuiet(on: Boolean) {
+      instance?.applyQuiet(on)
+    }
 
     @Volatile
     @JvmStatic

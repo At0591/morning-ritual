@@ -93,4 +93,14 @@ CREATE TABLE IF NOT EXISTS alarms (
   createdAt       TEXT NOT NULL,
   updatedAt       TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS journal_entries (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  dateKey         TEXT NOT NULL,
+  text            TEXT NOT NULL,
+  source          TEXT NOT NULL DEFAULT 'wake',
+  createdAt       TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_journal_createdAt ON journal_entries(createdAt);
 `;

@@ -20,6 +20,16 @@ export function shiftDateKey(dateKey: string, days: number): string {
   return localDateKey(new Date(y, m - 1, d + days, 12));
 }
 
+/**
+ * A clock reading split into the big number and its AM/PM marker, following
+ * the device locale ("4:55" + "PM", or "16:55" + "" on a 24-hour locale).
+ */
+export function splitClock(date: Date, locale?: string): { time: string; suffix: string } {
+  const text = date.toLocaleTimeString(locale ?? [], { hour: 'numeric', minute: '2-digit' });
+  const match = text.match(/^(.*?)\s*([AaPp]\.?\s?[Mm]\.?)$/);
+  return match ? { time: match[1], suffix: match[2].toUpperCase() } : { time: text, suffix: '' };
+}
+
 /** Whole calendar days from `fromKey` to `toKey` (e.g. yesterday to today = 1). */
 export function daysBetween(fromKey: string, toKey: string): number {
   const [y1, m1, d1] = fromKey.split('-').map(Number);

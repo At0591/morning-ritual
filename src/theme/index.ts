@@ -1,26 +1,42 @@
 // src/theme/index.ts
-// Design tokens for Morning Ritual.
-// Color palette: warm sunrise (orange) + cream + deep brown.
-// Typography: system font (Expo default), with weight variations for hierarchy.
+// Design tokens: brand "First Light" (decided 18 Nov 2026).
+// Night and Dusk carry the morning (dark until you're awake); Horizon amber is
+// the one accent; Linen is the daytime base. Fraunces for big moments,
+// Atkinson Hyperlegible for everything people read and tap.
+// Every text/background pair here was checked at 4.5:1 contrast or better;
+// re-check any new pair before using it.
 
+export const brand = {
+  night: '#0E1230', // morning base
+  dusk: '#1F2A55', // cards and surfaces at dawn
+  amber: '#FFB454', // the one accent; text on it is ink
+  ember: '#E8743B', // glow only, never behind text
+  linen: '#F7F1E8', // daytime base
+  ink: '#1C1A17', // daytime text
+  mist: '#9AA3C7', // secondary text on dark
+  stone: '#6E6458', // secondary text on light
+  line: '#E8E0D3', // dividers on light
+  white: '#FFFFFF',
+};
+
+// Older token names kept so existing screens restyle without rewrites.
 export const colors = {
-  // Primary palette
-  sunrise: '#FF6B35',      // primary brand color
-  sunriseDark: '#E55A2B',  // pressed state
-  cream: '#FAF7F2',        // background
-  card: '#FFFFFF',         // surface
-  ink: '#2D2A26',          // primary text
-  sand: '#8A8175',         // secondary text
-  divider: '#EFE9E0',      // subtle borders
+  sunrise: brand.dusk, // primary buttons and links on light screens (white text on it is 13:1)
+  sunriseDark: brand.night, // pressed state
+  cream: brand.linen, // background
+  card: brand.white, // surface
+  ink: brand.ink, // primary text
+  sand: brand.stone, // secondary text
+  divider: brand.line, // subtle borders
   // Semantic
-  success: '#2E7D32',      // green for completion
-  warning: '#E65100',      // orange for warnings
-  error: '#C62828',        // red for errors
-  // Theme accents (used for the 4 categories)
-  body: '#FF8A65',         // warm orange
-  mind: '#AB47BC',         // purple
-  brain: '#42A5F5',        // blue
-  creative: '#FFCA28',     // yellow
+  success: '#2E6B33',
+  warning: '#9C4A0C', // warning text on light tints, and white text on it (both above 4.5:1)
+  error: '#B3261E',
+  // Category accents (icons and dots, not text)
+  body: '#E8743B',
+  mind: '#7C5CBF',
+  brain: '#2F6FD0',
+  creative: '#C99A2E',
 };
 
 export const spacing = {
@@ -40,33 +56,39 @@ export const radius = {
   full: 9999,
 };
 
+export const fonts = {
+  display: 'Fraunces_600SemiBold',
+  read: 'AtkinsonHyperlegible_400Regular',
+  readBold: 'AtkinsonHyperlegible_700Bold',
+};
+
 export const typography = {
-  display: { fontFamily: 'Outfit_800ExtraBold', fontSize: 32, fontWeight: '800' as const, lineHeight: 38 },
-  title: { fontFamily: 'Outfit_700Bold', fontSize: 24, fontWeight: '700' as const, lineHeight: 30 },
-  heading: { fontFamily: 'Outfit_600SemiBold', fontSize: 20, fontWeight: '600' as const, lineHeight: 26 },
-  body: { fontFamily: 'Inter_400Regular', fontSize: 16, fontWeight: '400' as const, lineHeight: 22 },
-  bodyBold: { fontFamily: 'Inter_600SemiBold', fontSize: 16, fontWeight: '600' as const, lineHeight: 22 },
-  caption: { fontFamily: 'Inter_400Regular', fontSize: 13, fontWeight: '400' as const, lineHeight: 18 },
-  micro: { fontFamily: 'Inter_500Medium', fontSize: 11, fontWeight: '500' as const, lineHeight: 14, letterSpacing: 0.5 },
+  display: { fontFamily: fonts.display, fontSize: 32, lineHeight: 38 },
+  title: { fontFamily: fonts.display, fontSize: 24, lineHeight: 30 },
+  heading: { fontFamily: fonts.display, fontSize: 20, lineHeight: 26 },
+  body: { fontFamily: fonts.read, fontSize: 16, lineHeight: 22 },
+  bodyBold: { fontFamily: fonts.readBold, fontSize: 16, lineHeight: 22 },
+  caption: { fontFamily: fonts.read, fontSize: 13, lineHeight: 18 },
+  micro: { fontFamily: fonts.readBold, fontSize: 11, lineHeight: 14, letterSpacing: 0.8 },
 };
 
 export const shadows = {
   sm: {
-    shadowColor: '#000',
+    shadowColor: '#1C1A17',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
   },
   md: {
-    shadowColor: '#000',
+    shadowColor: '#1C1A17',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
     elevation: 4,
   },
   lg: {
-    shadowColor: '#000',
+    shadowColor: '#1C1A17',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.1,
     shadowRadius: 24,
@@ -80,7 +102,7 @@ export const themeColor = (theme: string): string => {
     case 'mind': return colors.mind;
     case 'brain': return colors.brain;
     case 'creative': return colors.creative;
-    default: return colors.sunrise;
+    default: return brand.amber;
   }
 };
 

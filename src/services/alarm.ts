@@ -40,7 +40,8 @@ import {
 } from '../db/database';
 import { AlarmScheduler } from '../../modules/alarm-scheduler/src';
 import { getSoundById, DEFAULT_SOUND_ID, SOUND_OPTIONS } from './sounds';
-import { getSetting } from '../db/database';
+import { getSetting, setSetting } from '../db/database';
+import { pendingCheckIn } from './scheduleHelper';
 import { trackAlarmFired } from './analytics';
 import { errorMessage } from '../utils/errors';
 
@@ -217,11 +218,87 @@ export async function openDisplayOverAppsSettings(): Promise<void> {
   }
 }
 
+/**
+ * The "Still up?" follow-up: a separate native alarm about 10 minutes after the
+ * morning flow ends. It starts quiet and rises like the main alarm, and the
+ * check-in screen stops it with one tap. Uses its own ID, so it never touches
+ * the next real alarm.
+ */
+export const CHECK_IN_ALARM_ID = 'checkin';
+export const CHECK_IN_DELAY_MINUTES = 10;
+
+export function isCheckInAlarm(taskId: string | undefined | null): boolean {
+  return taskId === CHECK_IN_ALARM_ID;
+}
+
+const CHECK_IN_SETTING_KEY = 'checkin_at';
+
+export async function scheduleCheckIn(now: Date = new Date()): Promise<Date | null> {
+  if (Platform.OS !== 'android') return null;
+  const fireAt = new Date(now.getTime() + CHECK_IN_DELAY_MINUTES * 60 * 1000);
+  return bookCheckIn(fireAt);
+}
+
+/**
+ * Re-book a "Still up?" that is still due. syncAlarms() clears the whole native
+ * queue before booking the next alarm, so it calls this straight afterwards.
+ */
+export async function rebookPendingCheckIn(now: Date = new Date()): Promise<void> {
+  if (Platform.OS !== 'android') return;
+  try {
+    const at = pendingCheckIn(await getSetting(CHECK_IN_SETTING_KEY), now);
+    if (at) await bookCheckIn(at);
+  } catch (e) {
+    console.warn(`[alarm] could not re-book the check-in: ${errorMessage(e)}`);
+  }
+}
+
+async function bookCheckIn(fireAt: Date): Promise<Date | null> {
+  try {
+    await setSetting(CHECK_IN_SETTING_KEY, fireAt.toISOString());
+    await AlarmScheduler.scheduleAlarm({
+      taskId: CHECK_IN_ALARM_ID,
+      taskText: 'Still up?',
+      triggerAtMillis: fireAt.getTime(),
+      preWakeWindowMinutes: 0,
+      soundUri: await resolveAlarmSoundUri(),
+    });
+    console.log(`[alarm] check-in booked for ${fireAt.toISOString()}`);
+    return fireAt;
+  } catch (e) {
+    console.warn(`[alarm] could not book the check-in: ${errorMessage(e)}`);
+    return null;
+  }
+}
+
+export async function cancelCheckIn(): Promise<void> {
+  if (Platform.OS !== 'android') return;
+  try {
+    await setSetting(CHECK_IN_SETTING_KEY, '');
+    await AlarmScheduler.cancelAlarm(CHECK_IN_ALARM_ID);
+  } catch {
+    // Nothing booked.
+  }
+}
+
+/** Whisper while the wake check is on screen; false lets the tone rise again. */
+export async function setAlarmQuiet(quiet: boolean): Promise<void> {
+  if (Platform.OS === 'android') {
+    try {
+      await AlarmScheduler.setRingQuiet(quiet);
+      return;
+    } catch {
+      // Older native build or tests; fall through to the in-app player.
+    }
+  }
+  if (activeSound) activeSound.volume = quiet ? 0.06 : 1.0;
+}
+
 /** Android: subscribe to alarms firing while the app is already running. */
-export function addNativeAlarmListener(onFire: () => void): () => void {
+export function addNativeAlarmListener(onFire: (taskId: string) => void): () => void {
   if (Platform.OS !== 'android') return () => {};
   try {
-    const sub = AlarmScheduler.addAlarmFireListener(() => onFire());
+    const sub = AlarmScheduler.addAlarmFireListener((event) => onFire(event.taskId));
     return () => sub?.remove?.();
   } catch {
     return () => {};
@@ -585,6 +662,8 @@ export async function restoreAlarmsOnAppStart(): Promise<{
   missed: number;
   rescheduled: number;
   coldStartFired: boolean;
+  /** ID of the alarm that fired while the app was closed, if any. */
+  coldStartTaskId: string | null;
 }> {
   await initAlarmService();
 
@@ -663,11 +742,13 @@ export async function restoreAlarmsOnAppStart(): Promise<{
 
   // 3) Cold-start detection — the native module has a lastFired entry
   let coldStartFired = false;
+  let coldStartTaskId: string | null = null;
   if (Platform.OS === 'android') {
     try {
       const cold = await AlarmScheduler.consumeLastFiredAlarm();
       if (cold) {
         coldStartFired = true;
+        coldStartTaskId = cold.taskId;
         console.log(`[alarm] cold-start fired alarm detected: ${cold.taskId}`);
       }
     } catch (e) {
@@ -675,7 +756,7 @@ export async function restoreAlarmsOnAppStart(): Promise<{
     }
   }
 
-  return { missed: missed.length, rescheduled, coldStartFired };
+  return { missed: missed.length, rescheduled, coldStartFired, coldStartTaskId };
 }
 
 export async function getScheduledAlarms(): Promise<{

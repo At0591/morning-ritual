@@ -1,4 +1,4 @@
-import { describeNextAlarm, getNextAlarmOccurrence } from '../scheduleHelper';
+import { describeNextAlarm, getNextAlarmOccurrence, pendingCheckIn } from '../scheduleHelper';
 import type { Alarm } from '../../db/database';
 
 const WEEKDAYS = [1, 2, 3, 4, 5];
@@ -70,5 +70,21 @@ describe('describeNextAlarm', () => {
 
   test('uses the weekday further out', () => {
     expect(describeNextAlarm(new Date(2026, 10, 20, 7, 0), tuesdayAfternoon)).not.toMatch(/^(Today|Tomorrow)/);
+  });
+});
+
+describe('pendingCheckIn', () => {
+  const now = new Date(2026, 10, 18, 6, 35);
+
+  test('a "Still up?" time still ahead is returned', () => {
+    const at = new Date(2026, 10, 18, 6, 41);
+    expect(pendingCheckIn(at.toISOString(), now)?.getTime()).toBe(at.getTime());
+  });
+
+  test('one that has passed, an empty value or garbage is ignored', () => {
+    expect(pendingCheckIn(new Date(2026, 10, 18, 6, 30).toISOString(), now)).toBeNull();
+    expect(pendingCheckIn('', now)).toBeNull();
+    expect(pendingCheckIn(null, now)).toBeNull();
+    expect(pendingCheckIn('not a date', now)).toBeNull();
   });
 });

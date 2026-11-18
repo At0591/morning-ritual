@@ -56,6 +56,28 @@ describe('database', () => {
     expect(v).toBe('07:00');
   });
 
+  test('journal: saves a cleaned line and lists newest first', async () => {
+    await Database.addJournalEntry('  first   line ', 'wake', new Date(2026, 10, 18, 6, 31));
+    await Database.addJournalEntry('second line', 'wake', new Date(2026, 10, 19, 6, 40));
+    const entries = await Database.getJournalEntries();
+    expect(entries.map((e) => e.text)).toEqual(['second line', 'first line']);
+    expect(entries[1].dateKey).toBe('2026-11-18');
+  });
+
+  test('journal: blank text is not saved and long text is capped', async () => {
+    expect(await Database.addJournalEntry('   ')).toBeNull();
+    const long = await Database.addJournalEntry('x'.repeat(500));
+    expect(long?.text.length).toBe(Database.JOURNAL_MAX_LENGTH);
+  });
+
+  test('journal export is plain text, oldest first', () => {
+    const text = Database.formatJournalExport([
+      { id: 2, dateKey: '2026-11-19', text: 'b', source: 'wake', createdAt: '2026-11-19T01:00:00.000Z' },
+      { id: 1, dateKey: '2026-11-18', text: 'a', source: 'wake', createdAt: '2026-11-18T01:00:00.000Z' },
+    ]);
+    expect(text).toBe('2026-11-18  a\n2026-11-19  b');
+  });
+
   test('markTaskShown stamps lastShownAt and increments timesShown', async () => {
     const id = ritualsJson[0].id;
     const before = await Database.getTaskById(id);

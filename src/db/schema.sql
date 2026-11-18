@@ -116,3 +116,16 @@ CREATE TABLE IF NOT EXISTS alarms (
   createdAt       TEXT NOT NULL,
   updatedAt       TEXT NOT NULL
 );
+
+-- 6. journal_entries
+--   The "one small good thing" line saved each morning (and any added later).
+--   Always free and exportable: it is the user's own writing.
+CREATE TABLE IF NOT EXISTS journal_entries (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  dateKey         TEXT NOT NULL,            -- local 'YYYY-MM-DD'
+  text            TEXT NOT NULL,
+  source          TEXT NOT NULL DEFAULT 'wake', -- 'wake' | 'manual'
+  createdAt       TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_journal_createdAt ON journal_entries(createdAt);

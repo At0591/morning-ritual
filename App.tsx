@@ -6,8 +6,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 import { useFonts } from 'expo-font';
-import { Outfit_600SemiBold, Outfit_700Bold, Outfit_800ExtraBold } from '@expo-google-fonts/outfit';
-import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
+import { Fraunces_600SemiBold } from '@expo-google-fonts/fraunces';
+import { AtkinsonHyperlegible_400Regular, AtkinsonHyperlegible_700Bold } from '@expo-google-fonts/atkinson-hyperlegible';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import {
@@ -22,6 +22,9 @@ import {
   resetAllData,
   getSetting,
   setSetting,
+  addJournalEntry,
+  getJournalEntries,
+  type JournalEntry,
   type DayHistory,
   type Streak,
   type HabitChain,
@@ -43,6 +46,9 @@ import {
   addNativeAlarmListener,
   openFullScreenAlarmSettings,
   openDisplayOverAppsSettings,
+  isCheckInAlarm,
+  scheduleCheckIn,
+  cancelCheckIn,
 } from './src/services/alarm';
 import { scheduleBedtimeReminder, cancelBedtimeReminder } from './src/services/bedtime';
 import { initSubscriptionService, getSubscriptionStatus, type SubscriptionTier } from './src/services/subscription';
@@ -59,7 +65,12 @@ import { EditAlarmScreen } from './src/screens/EditAlarmScreen';
 import { HistoryScreen } from './src/screens/HistoryScreen';
 import { PremiumScreen } from './src/screens/PremiumScreen';
 import { OnboardingFlow } from './src/screens/OnboardingFlow';
-import { WakeUpScreen } from './src/screens/WakeUpScreen';
+import { RingingScreen } from './src/screens/morning/RingingScreen';
+import { SunTapScreen } from './src/screens/morning/SunTapScreen';
+import { GoodThingScreen } from './src/screens/morning/GoodThingScreen';
+import { DoneScreen } from './src/screens/morning/DoneScreen';
+import { CantDoScreen } from './src/screens/morning/CantDoScreen';
+import { CheckInScreen } from './src/screens/morning/CheckInScreen';
 import { LoadingView, StartupErrorView } from './src/components/StartupStatus';
 import {
   initAnalytics,
@@ -73,6 +84,7 @@ import {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const SNOOZE_MINUTES = 5;
+const MAX_SNOOZES = 2;
 
 export default function App() {
   const [loading, setLoading] = useState(true);
@@ -95,31 +107,38 @@ export default function App() {
   const [bedtimeEnabled, setBedtimeEnabled] = useState<boolean>(false);
   const [subscriptionTier, setSubscriptionTier] = useState<SubscriptionTier>('free');
   const [alarmHelpDismissed, setAlarmHelpDismissed] = useState(false);
+  const [journal, setJournal] = useState<JournalEntry[]>([]);
+  // This morning's flow: snoozes used, the saved line, the ritual shown on
+  // "Done", and when the "Still up?" check will ring.
+  const [snoozesUsed, setSnoozesUsed] = useState(0);
+  const [savedLine, setSavedLine] = useState('');
+  const [doneRitual, setDoneRitual] = useState<Task | null>(null);
+  const [checkInAt, setCheckInAt] = useState<Date | null>(null);
 
   const lockScreen = useLockScreenAccess();
 
-  // A ringing alarm that asked for the wake screen before navigation was ready
+  // A ringing alarm that asked for its screen before navigation was ready
   // (during startup the loading screen is shown, so navigate() would no-op).
-  const pendingWakeRef = useRef(false);
+  const pendingWakeRef = useRef<'Wake' | 'CheckIn' | null>(null);
 
-  const goToWake = () => {
+  // The "Still up?" follow-up opens its own screen; every other alarm opens
+  // the ringing screen.
+  const goToWake = (taskId?: string | null) => {
+    const route = isCheckInAlarm(taskId) ? 'CheckIn' : 'Wake';
     if (navigationRef.isReady()) {
-      navigationRef.navigate('Wake');
+      navigationRef.navigate(route);
     } else {
-      pendingWakeRef.current = true;
+      pendingWakeRef.current = route;
     }
   };
 
   // An alarm that fires while the app is already open (warm start).
-  useEffect(() => addNativeAlarmListener(goToWake), []);
+  useEffect(() => addNativeAlarmListener((taskId) => goToWake(taskId)), []);
 
   const [fontsLoaded] = useFonts({
-    Outfit_600SemiBold,
-    Outfit_700Bold,
-    Outfit_800ExtraBold,
-    Inter_400Regular,
-    Inter_500Medium,
-    Inter_600SemiBold,
+    Fraunces_600SemiBold,
+    AtkinsonHyperlegible_400Regular,
+    AtkinsonHyperlegible_700Bold,
   });
 
   const pickFor = (tier: SubscriptionTier, theme: string | null) =>
@@ -136,7 +155,7 @@ export default function App() {
         // Whatever fires the alarm (native AlarmManager, expo-notifications or a
         // JS timer) opens the wake screen, the only screen that stops the sound
         // once the ritual is done.
-        setOnAlarmFireCallback(() => goToWake());
+        setOnAlarmFireCallback((taskId) => goToWake(taskId));
         // Recovery: handle missed alarms, re-queue pending ones, and detect an
         // alarm the native module fired while the app was closed.
         const restore = await restoreAlarmsOnAppStart();
@@ -146,7 +165,7 @@ export default function App() {
           );
         }
         // Ringing now: open the wake screen as soon as navigation is ready.
-        if (restore.coldStartFired) goToWake();
+        if (restore.coldStartFired) goToWake(restore.coldStartTaskId);
         await lockScreen.refresh();
         await initSubscriptionService();
         const { tier } = await getSubscriptionStatus();
@@ -163,6 +182,7 @@ export default function App() {
         setStreak(s);
         setChains(await getAllChains());
         setHistory(await getStreakHistory(7));
+        setJournal(await getJournalEntries(5));
         // Make sure the OS has the next alarm queued. No permission prompt here:
         // the home screen shows a clear "Allow" action if it's needed.
         applySyncResult(await syncAlarms(today.task));
@@ -183,6 +203,7 @@ export default function App() {
     setStreak(await getStreak());
     setChains(await getAllChains());
     setHistory(await getStreakHistory(7));
+    setJournal(await getJournalEntries(5));
   };
 
   function applySyncResult(result: AlarmSyncResult) {
@@ -228,8 +249,12 @@ export default function App() {
     }
   };
 
-  const onComplete = async (verificationData: { kind: string; [k: string]: unknown }) => {
-    if (!pick || !streak) return;
+  /**
+   * Record a finished morning: history row, streak, chain, next ritual, and the
+   * next alarm queued. Returns false if it couldn't (the error screen shows).
+   */
+  const completeMorning = async (verificationData: { kind: string; [k: string]: unknown }): Promise<boolean> => {
+    if (!pick || !streak) return false;
     try {
       const now = new Date().toISOString();
       // A real alarm opens the app straight into the wake flow, so there may
@@ -257,10 +282,68 @@ export default function App() {
       setTomorrowPick(await pickFor(subscriptionTier, preferredTheme));
       // Queue the next ring (tomorrow, next weekday...) with tomorrow's ritual.
       await resyncAlarms(false, (tomorrowPick ?? pick).task);
-      navigate('Success');
+      return true;
     } catch (e) {
       setError(errorMessage(e));
+      return false;
     }
+  };
+
+  // The older ritual-with-proof path (Home → Reveal → Verify).
+  const onComplete = async (verificationData: { kind: string; [k: string]: unknown }) => {
+    if (await completeMorning(verificationData)) navigate('Success');
+  };
+
+  // New morning flow, step 3 saved: journal line, morning recorded, alarm off,
+  // then the "Still up?" check booked for 10 minutes from now.
+  const onGoodThingSaved = async (line: string) => {
+    const ritual = pick?.task ?? null;
+    setSavedLine(line);
+    setDoneRitual(ritual);
+    try {
+      await addJournalEntry(line, 'wake');
+    } catch (e) {
+      console.warn(`[journal] could not save: ${errorMessage(e)}`);
+    }
+    const ok = await completeMorning({ kind: 'checkin', text: line });
+    if (!ok) return;
+    setSnoozesUsed(0);
+    setCheckInAt(await scheduleCheckIn());
+    navigate('Done');
+  };
+
+  // "I can't do this today": alarm off without the check. Not counted as a
+  // completed morning, but the "Still up?" check still runs.
+  const onCantDoTurnOff = async () => {
+    await stopAlarmSound();
+    if (pick) {
+      try {
+        const now = new Date().toISOString();
+        const historyId = currentHistoryId ?? (await recordAlarmFire(pick.task.id, now));
+        await recordCompletion(historyId, now, 'skipped');
+        trackTaskSkipped({ taskTheme: pick.task.theme });
+      } catch {
+        // Recording is best effort; the alarm is already off.
+      }
+    }
+    setSnoozesUsed(0);
+    setCurrentHistoryId(null);
+    await resyncAlarms(false);
+    setCheckInAt(await scheduleCheckIn());
+    navigate('Home');
+  };
+
+  const onCheckInUp = async () => {
+    await stopAlarmSound();
+    await cancelCheckIn();
+    setCheckInAt(null);
+    navigate('Home');
+  };
+
+  const onFinishDone = async () => {
+    setCurrentHistoryId(null);
+    navigate('Home');
+    await refreshProgress();
   };
 
   const onSkip = async () => {
@@ -277,8 +360,10 @@ export default function App() {
     navigate('Home');
   };
 
-  const onSnooze = () => {
-    if (!pick) return;
+  const onSnooze = async () => {
+    if (!pick || snoozesUsed >= MAX_SNOOZES) return;
+    setSnoozesUsed((n) => n + 1);
+    await stopAlarmSound();
     const snoozeFor = new Date(Date.now() + SNOOZE_MINUTES * 60 * 1000);
     scheduleAlarm(snoozeFor, pick.task.id, pick.task.text, 0).catch((e) => console.error(e));
     trackTaskSnoozed({ taskTheme: pick.task.theme, snoozeDurationMins: SNOOZE_MINUTES });
@@ -393,9 +478,10 @@ export default function App() {
     <NavigationContainer
       ref={navigationRef}
       onReady={() => {
-        if (pendingWakeRef.current) {
-          pendingWakeRef.current = false;
-          navigationRef.navigate('Wake');
+        const route = pendingWakeRef.current;
+        if (route) {
+          pendingWakeRef.current = null;
+          navigationRef.navigate(route);
         }
       }}
     >
@@ -411,6 +497,7 @@ export default function App() {
                   streak={streak}
                   chains={chains}
                   history={history}
+                  journal={journal}
                   alarmStatus={alarmStatus}
                   nextAlarm={nextAlarm}
                   lockScreenAccessMissing={lockScreen.missing}
@@ -424,7 +511,40 @@ export default function App() {
               )}
             </Stack.Screen>
             <Stack.Screen name="Wake" options={{ gestureEnabled: false, animation: 'fade' }}>
-              {() => <WakeUpScreen task={pick.task} onComplete={() => navigate('Reveal')} onSnooze={onSnooze} />}
+              {() => (
+                <RingingScreen
+                  snoozesLeft={MAX_SNOOZES - snoozesUsed}
+                  onStart={() => navigate('SunTap')}
+                  onSnooze={() => void onSnooze()}
+                />
+              )}
+            </Stack.Screen>
+            <Stack.Screen name="SunTap" options={{ gestureEnabled: false, animation: 'fade' }}>
+              {() => <SunTapScreen onDone={() => navigate('GoodThing')} onCantDo={() => navigate('CantDo')} />}
+            </Stack.Screen>
+            <Stack.Screen name="GoodThing" options={{ gestureEnabled: false, animation: 'fade' }}>
+              {() => <GoodThingScreen onSave={(line) => void onGoodThingSaved(line)} />}
+            </Stack.Screen>
+            <Stack.Screen name="Done" options={{ gestureEnabled: false, animation: 'fade' }}>
+              {() => (
+                <DoneScreen
+                  line={savedLine}
+                  streakCount={lastStreakCount}
+                  ritual={doneRitual}
+                  checkInAt={checkInAt}
+                  onRitualDone={() => {
+                    trackEvent('Ritual_Done_After_Wake', { taskTheme: doneRitual?.theme ?? 'unknown' });
+                    void onFinishDone();
+                  }}
+                  onLater={() => void onFinishDone()}
+                />
+              )}
+            </Stack.Screen>
+            <Stack.Screen name="CantDo" options={{ gestureEnabled: false, animation: 'fade' }}>
+              {() => <CantDoScreen onTurnOff={() => void onCantDoTurnOff()} onBack={() => navigate('SunTap')} />}
+            </Stack.Screen>
+            <Stack.Screen name="CheckIn" options={{ gestureEnabled: false, animation: 'fade' }}>
+              {() => <CheckInScreen onUp={() => void onCheckInUp()} />}
             </Stack.Screen>
             <Stack.Screen name="Reveal" options={{ gestureEnabled: false }}>
               {() => (

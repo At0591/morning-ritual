@@ -297,6 +297,12 @@ class AlarmSchedulerModule : Module() {
       AlarmRingService.isRinging
     }
 
+    // Whisper while the user does the wake check; false resumes the rising tone.
+    AsyncFunction("setRingQuiet") { quiet: Boolean, promise: Promise ->
+      AlarmRingService.setQuiet(quiet)
+      promise.resolve(null)
+    }
+
     // --- Full-screen alarm access (Android 14+ requires the user to allow it) ---
 
     AsyncFunction("canUseFullScreenIntent") { promise: Promise ->

@@ -42,6 +42,7 @@ type NativeAlarmSchedulerModule = NativeModule<{
   startRinging(params: { taskId: string; taskText: string; soundUri?: string }): Promise<boolean>;
   stopRinging(): Promise<void>;
   isRinging(): boolean;
+  setRingQuiet(quiet: boolean): Promise<void>;
   canUseFullScreenIntent(): Promise<boolean>;
   openFullScreenIntentSettings(): Promise<boolean>;
   setShowWhenLocked(show: boolean): Promise<boolean>;
@@ -81,6 +82,9 @@ export const AlarmScheduler = {
   stopRinging: (): Promise<void> => nativeModule.stopRinging(),
 
   isRinging: (): boolean => nativeModule.isRinging(),
+
+  /** Whisper while the wake check is on screen; false resumes the rising tone. */
+  setRingQuiet: (quiet: boolean): Promise<void> => nativeModule.setRingQuiet(quiet),
 
   /** Android 14+: whether the alarm may open full screen over the lock screen. */
   canUseFullScreenIntent: (): Promise<boolean> => nativeModule.canUseFullScreenIntent(),

@@ -4,8 +4,8 @@
   "license": "UNLICENSED",
   "main": "node_modules/expo/AppEntry.js",
   "dependencies": {
-    "@expo-google-fonts/inter": "^0.4.2",
-    "@expo-google-fonts/outfit": "^0.4.3",
+    "@expo-google-fonts/atkinson-hyperlegible": "^0.4.1",
+    "@expo-google-fonts/fraunces": "^0.4.1",
     "@expo/vector-icons": "^15.0.3",
     "@react-native-community/datetimepicker": "9.2.1",
     "@react-navigation/native": "^7.3.3",

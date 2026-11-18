@@ -6,7 +6,12 @@ import { createNavigationContainerRef } from '@react-navigation/native';
 export type RootStackParamList = {
   Onboarding: undefined;
   Home: undefined;
-  Wake: undefined;
+  Wake: undefined; // ringing
+  SunTap: undefined;
+  GoodThing: undefined;
+  Done: undefined;
+  CantDo: undefined;
+  CheckIn: undefined;
   Reveal: undefined;
   Verify: undefined;
   Success: undefined;

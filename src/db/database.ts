@@ -427,6 +427,7 @@ export async function resetAllData(): Promise<void> {
   await db.runAsync('DELETE FROM user_settings', []);
   await db.runAsync('DELETE FROM scheduled_alarms', []);
   await db.runAsync('DELETE FROM alarms', []);
+  await db.runAsync('DELETE FROM journal_entries', []);
   // Re-seed streak row
   await db.runAsync(
     `INSERT INTO streaks (id, currentStreak, longestStreak, lastCompletedDate, totalCompleted, graceDays)
@@ -565,6 +566,61 @@ function rowToChain(row: ChainRow): HabitChain {
     completedAt: row.completedAt,
     earnedBadge: !!row.earnedBadge,
   };
+}
+
+// --- Journal (the morning's "one small good thing") ---
+
+export interface JournalEntry {
+  id: number;
+  dateKey: string; // local 'YYYY-MM-DD'
+  text: string;
+  source: 'wake' | 'manual';
+  createdAt: string;
+}
+
+/** Longest line we keep; the input is meant for one short sentence. */
+export const JOURNAL_MAX_LENGTH = 280;
+
+/** Trimmed, single-spaced, capped text, or null if there's nothing to save. */
+export function cleanJournalText(text: string): string | null {
+  const cleaned = text.replace(/\s+/g, ' ').trim().slice(0, JOURNAL_MAX_LENGTH);
+  return cleaned.length > 0 ? cleaned : null;
+}
+
+export async function addJournalEntry(
+  text: string,
+  source: JournalEntry['source'] = 'wake',
+  at: Date = new Date()
+): Promise<JournalEntry | null> {
+  const cleaned = cleanJournalText(text);
+  if (!cleaned) return null;
+  const db = getDb();
+  const createdAt = at.toISOString();
+  const dateKey = localDateKey(at);
+  const result = await db.runAsync(
+    'INSERT INTO journal_entries (dateKey, text, source, createdAt) VALUES (?, ?, ?, ?)',
+    [dateKey, cleaned, source, createdAt]
+  );
+  return { id: result.lastInsertRowId ?? 0, dateKey, text: cleaned, source, createdAt };
+}
+
+/** Newest first. */
+export async function getJournalEntries(limit: number = 50): Promise<JournalEntry[]> {
+  const db = getDb();
+  const rows = await db.getAllAsync<JournalEntry>(
+    'SELECT id, dateKey, text, source, createdAt FROM journal_entries ORDER BY createdAt DESC LIMIT ?',
+    [limit]
+  );
+  // Sorted here as well, so the order never depends on the SQLite layer.
+  return [...rows].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, limit);
+}
+
+/** Plain-text export of the whole journal, oldest first, for sharing or backup. */
+export function formatJournalExport(entries: JournalEntry[]): string {
+  return [...entries]
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    .map((e) => `${e.dateKey}  ${e.text}`)
+    .join('\n');
 }
 
 export interface HistoryEntry {

@@ -34,6 +34,17 @@ export function getNextAlarmOccurrence(alarms: Alarm[], now: Date = new Date()):
   return closest;
 }
 
+/**
+ * The stored "Still up?" time (ISO string, or empty) if it is still ahead of
+ * `now`, so it can be booked again after the alarm queue was rebuilt.
+ */
+export function pendingCheckIn(stored: string | null | undefined, now: Date = new Date()): Date | null {
+  if (!stored) return null;
+  const at = new Date(stored);
+  if (Number.isNaN(at.getTime())) return null;
+  return at.getTime() > now.getTime() ? at : null;
+}
+
 /** Friendly label for the home screen, e.g. "Today 7:00 AM" or "Wed 6:30 AM". */
 export function describeNextAlarm(date: Date, now: Date = new Date()): string {
   const time = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
