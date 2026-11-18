@@ -17,6 +17,11 @@ expo-env.d.ts
 *.p12
 *.key
 *.mobileprovision
+# Signing key and passwords downloaded from EAS for local builds: never commit
+credentials.json
+/credentials/
+# local APK output (scripts/build-local-apk.ps1)
+/build/
 
 # Metro
 .metro-health-check*
