@@ -24,7 +24,7 @@ function makeTask(id: string, theme: string, isFree: boolean, timesShown = 0): T
 
 // Mock the database module
 jest.mock('../../db/database', () => ({
-  getAllTasks: jest.fn(async (filters: any) => {
+  getAllTasks: jest.fn(async (filters?: { theme?: string; isFree?: boolean; isActive?: boolean }) => {
     let result = [...mockTasks];
     if (filters?.theme) result = result.filter((t) => t.theme === filters.theme);
     if (filters?.isActive !== undefined) result = result.filter((t) => t.isActive === filters.isActive);

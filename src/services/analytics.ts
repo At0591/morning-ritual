@@ -5,7 +5,8 @@ const POSTHOG_API_KEY = 'phc_dummy_key_for_now';
 // Use the US or EU host depending on your PostHog instance
 const POSTHOG_HOST = 'https://us.i.posthog.com';
 
-let posthogClient: any = null;
+let posthogClient: PostHog | null = null;
+type EventProperties = Parameters<PostHog["capture"]>[1];
 
 export async function initAnalytics() {
   if (posthogClient) return;
@@ -21,7 +22,7 @@ export async function initAnalytics() {
   }
 }
 
-export function trackEvent(eventName: string, properties?: Record<string, any>) {
+export function trackEvent(eventName: string, properties?: EventProperties) {
   if (!posthogClient) return;
   try {
     posthogClient.capture(eventName, properties);
@@ -31,7 +32,7 @@ export function trackEvent(eventName: string, properties?: Record<string, any>) 
   }
 }
 
-export function identifyUser(userId: string, properties?: Record<string, any>) {
+export function identifyUser(userId: string, properties?: EventProperties) {
   if (!posthogClient) return;
   try {
     posthogClient.identify(userId, properties);

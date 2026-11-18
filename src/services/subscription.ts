@@ -24,6 +24,7 @@
 //  7. Rebuild EAS
 
 import { Platform } from 'react-native';
+import { errorMessage } from '../utils/errors';
 import Constants from 'expo-constants';
 
 type RevenueCatConfig = {
@@ -35,7 +36,7 @@ type RevenueCatConfig = {
 };
 
 function getConfig(): RevenueCatConfig {
-  const extra = (Constants.expoConfig?.extra as any)?.revenueCat;
+  const extra = (Constants.expoConfig?.extra as { revenueCat?: RevenueCatConfig } | undefined)?.revenueCat;
   if (!extra) {
     throw new Error(
       'revenueCat config missing from app.json. Add the extra.revenueCat block.'
@@ -53,11 +54,11 @@ function isMockMode(): boolean {
 
 // Lazy-loaded RevenueCat module. We dynamic-import so the app doesn't crash
 // on first launch when the native module isn't yet linked.
-let Purchases: any = null;
-async function getPurchases() {
+type PurchasesModule = typeof import('react-native-purchases').default;
+let Purchases: PurchasesModule | null = null;
+async function getPurchases(): Promise<PurchasesModule | null> {
   if (Purchases) return Purchases;
   try {
-    // @ts-ignore — react-native-purchases is optional (see isIapAvailable)
     const mod = await import('react-native-purchases');
     Purchases = mod.default;
     return Purchases;
@@ -89,8 +90,8 @@ export async function initSubscriptionService(): Promise<void> {
     RC.configure({ apiKey });
     initialized = true;
     console.log('[subscription] RevenueCat configured for', Platform.OS);
-  } catch (e: any) {
-    console.error('[subscription] Failed to configure RevenueCat:', e?.message ?? e);
+  } catch (e) {
+    console.error('[subscription] Failed to configure RevenueCat:', errorMessage(e));
   }
 }
 
@@ -133,8 +134,8 @@ export async function getSubscriptionStatus(): Promise<{
       period: isYearly ? 'yearly' : 'monthly',
       expiresAt: entitlement.expirationDate ? new Date(entitlement.expirationDate) : null,
     };
-  } catch (e: any) {
-    console.error('[subscription] getCustomerInfo failed:', e?.message ?? e);
+  } catch (e) {
+    console.error('[subscription] getCustomerInfo failed:', errorMessage(e));
     return { tier: 'free', period: null, expiresAt: null };
   }
 }
@@ -167,8 +168,8 @@ export async function getOfferings(): Promise<Offerings> {
         ? { priceString: yearly.priceString, price: yearly.price }
         : null,
     };
-  } catch (e: any) {
-    console.error('[subscription] getOfferings failed:', e?.message ?? e);
+  } catch (e) {
+    console.error('[subscription] getOfferings failed:', errorMessage(e));
     return { monthly: null, yearly: null };
   }
 }
@@ -206,13 +207,13 @@ export async function purchaseSubscription(
       success: !!entitlement,
       status: await getSubscriptionStatus(),
     };
-  } catch (e: any) {
+  } catch (e) {
     // User cancelled
-    if (e?.userCancelled) {
+    if (typeof e === 'object' && e !== null && (e as { userCancelled?: boolean }).userCancelled) {
       return { success: false, error: 'cancelled', status: await getSubscriptionStatus() };
     }
-    console.error('[subscription] purchase failed:', e?.message ?? e);
-    return { success: false, error: e?.message ?? 'Purchase failed', status: await getSubscriptionStatus() };
+    console.error('[subscription] purchase failed:', errorMessage(e));
+    return { success: false, error: errorMessage(e) || 'Purchase failed', status: await getSubscriptionStatus() };
   }
 }
 
@@ -228,8 +229,8 @@ export async function restorePurchases(): Promise<{ restored: boolean; status: A
   try {
     await RC.restorePurchases();
     return { restored: true, status: await getSubscriptionStatus() };
-  } catch (e: any) {
-    console.error('[subscription] restore failed:', e?.message ?? e);
+  } catch (e) {
+    console.error('[subscription] restore failed:', errorMessage(e));
     return { restored: false, status: { tier: 'free', period: null, expiresAt: null } };
   }
 }

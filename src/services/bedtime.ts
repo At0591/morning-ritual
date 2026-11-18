@@ -5,6 +5,7 @@
 
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import { errorMessage } from '../utils/errors';
 
 const BEDTIME_CHANNEL_ID = 'morning-ritual-bedtime-v2';
 const BEDTIME_CHANNEL_NAME = 'Bedtime Reminder';
@@ -84,8 +85,8 @@ export async function scheduleBedtimeReminder(bedtime: string): Promise<string |
         },
         trigger: null,
       });
-    } catch (e: any) {
-      console.error(`[bedtime] notification failed: ${e?.message ?? e}`);
+    } catch (e) {
+      console.error(`[bedtime] notification failed: ${errorMessage(e)}`);
     }
   }, delayMs);
 

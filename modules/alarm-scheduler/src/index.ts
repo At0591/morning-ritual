@@ -47,6 +47,10 @@ type NativeAlarmSchedulerModule = NativeModule<{
   setShowWhenLocked(show: boolean): Promise<boolean>;
   canDrawOverlays(): Promise<boolean>;
   openOverlaySettings(): Promise<boolean>;
+  addListener(
+    eventName: 'onAlarmFire',
+    listener: (event: { taskId: string; taskText: string; fireAt: number }) => void
+  ): { remove(): void };
 };
 
 export type ScheduleParams = {
@@ -117,7 +121,7 @@ export const AlarmScheduler = {
    * For cold-start, use consumeLastFiredAlarm() on app launch.
    */
   addAlarmFireListener: (listener: (event: AlarmFireEvent) => void) => {
-    return (nativeModule as any).addListener('onAlarmFire', listener);
+    return nativeModule.addListener('onAlarmFire', listener);
   },
 };
 

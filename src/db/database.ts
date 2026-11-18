@@ -120,7 +120,7 @@ export async function getAllTasks(filters?: {
 }): Promise<Task[]> {
   const db = getDb();
   let sql = 'SELECT * FROM tasks WHERE 1=1';
-  const params: any[] = [];
+  const params: SQLite.SQLiteBindValue[] = [];
 
   if (filters?.theme) {
     sql += ' AND theme = ?';
@@ -135,13 +135,13 @@ export async function getAllTasks(filters?: {
     params.push(filters.isActive ? 1 : 0);
   }
 
-  const rows = await db.getAllAsync(sql, params);
+  const rows = await db.getAllAsync<TaskRow>(sql, params);
   return rows.map(rowToTask);
 }
 
 export async function getTaskById(id: string): Promise<Task | null> {
   const db = getDb();
-  const row = await db.getFirstAsync('SELECT * FROM tasks WHERE id = ?', [id]);
+  const row = await db.getFirstAsync<TaskRow>('SELECT * FROM tasks WHERE id = ?', [id]);
   return row ? rowToTask(row) : null;
 }
 
@@ -162,11 +162,11 @@ export async function markTaskShown(id: string, timestamp: string): Promise<void
 export async function getRecentTaskIds(daysBack: number): Promise<string[]> {
   const db = getDb();
   const cutoff = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000).toISOString();
-  const rows = await db.getAllAsync(
+  const rows = await db.getAllAsync<{ id: string }>(
     'SELECT id FROM tasks WHERE lastShownAt IS NOT NULL AND lastShownAt > ?',
     [cutoff]
   );
-  return rows.map((r: any) => r.id);
+  return rows.map((r) => r.id);
 }
 
 // --- Alarm history ---
@@ -189,7 +189,7 @@ export async function recordAlarmFire(
     `INSERT INTO alarm_history (taskId, firedAt, outcome) VALUES (?, ?, 'snoozed')`,
     [taskId, firedAt]
   );
-  return (result as any).lastInsertRowId ?? 0;
+  return result.lastInsertRowId ?? 0;
 }
 
 export async function recordCompletion(
@@ -218,16 +218,16 @@ export interface Streak {
 
 export async function getStreak(): Promise<Streak> {
   const db = getDb();
-  const row = await db.getFirstAsync('SELECT * FROM streaks WHERE id = 1');
+  const row = await db.getFirstAsync<Streak>('SELECT * FROM streaks WHERE id = 1');
   return row as Streak;
 }
 
 export async function updateStreak(updates: Partial<Streak>): Promise<void> {
   const db = getDb();
-  const fields = Object.keys(updates);
+  const fields = Object.keys(updates) as (keyof Streak)[];
   if (fields.length === 0) return;
   const setClause = fields.map((f) => `${f} = ?`).join(', ');
-  const values = fields.map((f) => (updates as any)[f]);
+  const values = fields.map((f) => updates[f] ?? null);
   await db.runAsync(`UPDATE streaks SET ${setClause} WHERE id = 1`, values);
 }
 
@@ -274,13 +274,13 @@ export async function getStreakHistory(daysBack: number = 7): Promise<DayHistory
   cutoff.setDate(cutoff.getDate() - (daysBack - 1));
   const cutoffIso = cutoff.toISOString();
 
-  const rows = await db.getAllAsync(
+  const rows = await db.getAllAsync<{ firedAt: string; completedAt: string; outcome: string }>(
     `SELECT firedAt, completedAt, outcome FROM alarm_history
      WHERE completedAt IS NOT NULL AND completedAt >= ? AND outcome = 'completed'`,
     [cutoffIso]
   );
 
-  for (const row of rows as any[]) {
+  for (const row of rows) {
     const dateStr = localDateKey(new Date(row.completedAt));
     const entry = days.find((day) => day.date === dateStr);
     if (entry) {
@@ -296,8 +296,8 @@ export async function getStreakHistory(daysBack: number = 7): Promise<DayHistory
 
 export async function getSetting(key: string): Promise<string | null> {
   const db = getDb();
-  const row = await db.getFirstAsync('SELECT value FROM user_settings WHERE key = ?', [key]);
-  return row ? (row as any).value : null;
+  const row = await db.getFirstAsync<{ value: string }>('SELECT value FROM user_settings WHERE key = ?', [key]);
+  return row ? row.value : null;
 }
 
 export async function setSetting(key: string, value: string): Promise<void> {
@@ -348,17 +348,10 @@ export async function recordScheduledAlarm(args: {
  */
 export async function getPendingAlarms(): Promise<ScheduledAlarm[]> {
   const db = getDb();
-  const rows = await db.getAllAsync(
+  const rows = await db.getAllAsync<ScheduledAlarmRow>(
     `SELECT * FROM scheduled_alarms WHERE fired = 0 ORDER BY fireAt ASC`
   );
-  return rows.map((row: any) => ({
-    id: row.id,
-    taskId: row.taskId,
-    taskText: row.taskText,
-    fireAt: row.fireAt,
-    createdAt: row.createdAt,
-    fired: !!row.fired,
-  }));
+  return rows.map(rowToScheduledAlarm);
 }
 
 /**
@@ -369,18 +362,24 @@ export async function getPendingAlarms(): Promise<ScheduledAlarm[]> {
 export async function getMissedAlarms(): Promise<ScheduledAlarm[]> {
   const db = getDb();
   const now = new Date().toISOString();
-  const rows = await db.getAllAsync(
+  const rows = await db.getAllAsync<ScheduledAlarmRow>(
     `SELECT * FROM scheduled_alarms WHERE fired = 0 AND fireAt <= ? ORDER BY fireAt ASC`,
     [now]
   );
-  return rows.map((row: any) => ({
+  return rows.map(rowToScheduledAlarm);
+}
+
+type ScheduledAlarmRow = Omit<ScheduledAlarm, 'fired'> & { fired: number };
+
+function rowToScheduledAlarm(row: ScheduledAlarmRow): ScheduledAlarm {
+  return {
     id: row.id,
     taskId: row.taskId,
     taskText: row.taskText,
     fireAt: row.fireAt,
     createdAt: row.createdAt,
     fired: !!row.fired,
-  }));
+  };
 }
 
 /**
@@ -505,7 +504,7 @@ export async function updateHabitChain(
   const today = localDateKey(completionDate);
   const yesterday = shiftDateKey(today, -1);
 
-  const row = await db.getFirstAsync('SELECT * FROM habit_chains WHERE theme = ?', [theme]);
+  const row = await db.getFirstAsync<ChainRow>('SELECT * FROM habit_chains WHERE theme = ?', [theme]);
   if (!row) {
     throw new Error(`Unknown theme for habit chain: ${theme}`);
   }
@@ -545,17 +544,19 @@ export async function updateHabitChain(
 
 export async function getAllChains(): Promise<HabitChain[]> {
   const db = getDb();
-  const rows = await db.getAllAsync('SELECT * FROM habit_chains');
+  const rows = await db.getAllAsync<ChainRow>('SELECT * FROM habit_chains');
   return rows.map(rowToChain);
 }
 
 export async function getChain(theme: string): Promise<HabitChain | null> {
   const db = getDb();
-  const row = await db.getFirstAsync('SELECT * FROM habit_chains WHERE theme = ?', [theme]);
+  const row = await db.getFirstAsync<ChainRow>('SELECT * FROM habit_chains WHERE theme = ?', [theme]);
   return row ? rowToChain(row) : null;
 }
 
-function rowToChain(row: any): HabitChain {
+type ChainRow = Omit<HabitChain, 'earnedBadge'> & { earnedBadge: number };
+
+function rowToChain(row: ChainRow): HabitChain {
   return {
     theme: row.theme,
     chainCount: row.chainCount,
@@ -573,24 +574,39 @@ export interface HistoryEntry {
   firedAt: string;
   completedAt: string | null;
   outcome: 'completed' | 'snoozed' | 'skipped' | 'missed';
-  verificationData: any;
+  verificationData: VerificationData | null;
 }
+
+/** What a completed ritual saved as proof (photo, voice memo or check-in note). */
+export type VerificationData = {
+  kind?: string;
+  uri?: string;
+  durationMs?: number;
+  text?: string;
+  [key: string]: unknown;
+};
+
+type HistoryRow = Omit<HistoryEntry, 'task' | 'verificationData'> & { verificationData: string | null };
 
 /**
  * Get the last N history entries (most recent first). Joins with tasks for display.
  */
 export async function getHistory(limit: number = 50): Promise<HistoryEntry[]> {
   const db = getDb();
-  const rows = await db.getAllAsync(
+  const rows = await db.getAllAsync<HistoryRow>(
     `SELECT * FROM alarm_history ORDER BY firedAt DESC LIMIT ?`,
     [limit]
   );
   const entries: HistoryEntry[] = [];
-  for (const r of rows as any[]) {
+  for (const r of rows) {
     const task = await getTaskById(r.taskId);
-    let verificationData = null;
+    let verificationData: VerificationData | null = null;
     if (r.verificationData) {
-      try { verificationData = JSON.parse(r.verificationData); } catch {}
+      try {
+        verificationData = JSON.parse(r.verificationData) as VerificationData;
+      } catch {
+        // An unreadable proof shouldn't hide the rest of the history.
+      }
     }
     entries.push({
       id: r.id,
@@ -607,7 +623,9 @@ export async function getHistory(limit: number = 50): Promise<HistoryEntry[]> {
 
 // --- Helpers ---
 
-function rowToTask(row: any): Task {
+type TaskRow = Omit<Task, 'isFree' | 'isActive'> & { isFree: number; isActive: number };
+
+function rowToTask(row: TaskRow): Task {
   return {
     id: row.id,
     theme: row.theme,
@@ -638,17 +656,29 @@ export interface Alarm {
 
 export async function getAllAlarms(): Promise<Alarm[]> {
   const db = getDb();
-  const rows = await db.getAllAsync('SELECT * FROM alarms ORDER BY time ASC');
-  return rows.map((row: any) => ({
+  const rows = await db.getAllAsync<AlarmRow>('SELECT * FROM alarms ORDER BY time ASC');
+  return rows.map(rowToAlarm);
+}
+
+export async function getAlarmById(id: string): Promise<Alarm | null> {
+  const db = getDb();
+  const row = await db.getFirstAsync<AlarmRow>('SELECT * FROM alarms WHERE id = ?', [id]);
+  return row ? rowToAlarm(row) : null;
+}
+
+type AlarmRow = Omit<Alarm, 'days' | 'enabled'> & { days: string; enabled: number };
+
+function rowToAlarm(row: AlarmRow): Alarm {
+  return {
     id: row.id,
     time: row.time,
-    days: JSON.parse(row.days),
+    days: JSON.parse(row.days) as number[],
     enabled: !!row.enabled,
     soundId: row.soundId,
     smartWakeWindow: row.smartWakeWindow,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
-  }));
+  };
 }
 
 export async function addAlarm(alarm: Omit<Alarm, 'createdAt' | 'updatedAt'>): Promise<void> {
@@ -674,21 +704,16 @@ export async function updateAlarm(id: string, updates: Partial<Omit<Alarm, 'id' 
   const db = getDb();
   const now = new Date().toISOString();
   
-  const fields = Object.keys(updates);
+  const fields = Object.keys(updates) as (keyof typeof updates)[];
   if (fields.length === 0) return;
-  
-  const setClauses = fields.map(f => {
-    if (f === 'enabled') return 'enabled = ?';
-    if (f === 'days') return 'days = ?';
-    return `${f} = ?`;
-  });
+
+  const setClauses = fields.map((f) => `${f} = ?`);
   setClauses.push('updatedAt = ?');
-  
-  const values = fields.map(f => {
-    const val = (updates as any)[f];
-    if (f === 'enabled') return val ? 1 : 0;
-    if (f === 'days') return JSON.stringify(val);
-    return val;
+
+  const values: SQLite.SQLiteBindValue[] = fields.map((f) => {
+    if (f === 'enabled') return updates.enabled ? 1 : 0;
+    if (f === 'days') return JSON.stringify(updates.days);
+    return updates[f] ?? null;
   });
   values.push(now, id);
   

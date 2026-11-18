@@ -1,82 +1,55 @@
-// App.tsx — Phase 3: Settings + History + Time picker + Tomorrow preview
-// Home → TaskReveal → Verification → Success → Home
-// Plus: Settings, History (reached from home header buttons)
+// App.tsx: startup, app-wide state and the navigator.
+// Morning flow: Wake → Reveal → Verify → Success → Home.
+// Home links to Settings, History, Alarms and Premium.
+// Screens live in src/screens; this file owns the shared state they act on.
 
 import { useEffect, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  AppState,
-  Linking,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Alert } from 'react-native';
 import { useFonts } from 'expo-font';
-import {
-  Outfit_600SemiBold,
-  Outfit_700Bold,
-  Outfit_800ExtraBold,
-} from '@expo-google-fonts/outfit';
-import {
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_600SemiBold,
-} from '@expo-google-fonts/inter';
-import { Feather } from '@expo/vector-icons';
-import { StatusBar } from 'expo-status-bar';
-import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
+import { Outfit_600SemiBold, Outfit_700Bold, Outfit_800ExtraBold } from '@expo-google-fonts/outfit';
+import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
+import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import {
   openDatabase,
   getStreak,
   updateStreak,
   getStreakHistory,
-  getAllTasks,
   getAllChains,
   updateHabitChain,
-  DayHistory,
-  Streak,
-  HabitChain,
   recordCompletion,
   recordAlarmFire,
-  Task,
   resetAllData,
-  getAllAlarms,
-  Alarm
+  getSetting,
+  setSetting,
+  type DayHistory,
+  type Streak,
+  type HabitChain,
+  type Task,
 } from './src/db/database';
-import { describeNextAlarm, type NextAlarm } from './src/services/scheduleHelper';
+import type { NextAlarm } from './src/services/scheduleHelper';
 import { syncAlarms, type AlarmSyncResult } from './src/services/alarmSync';
 import { nextStreak } from './src/services/streak';
 import { localDateKey } from './src/utils/dates';
-import { pickDailyTask, PickResult } from './src/services/dailyPick';
+import { errorMessage } from './src/utils/errors';
+import { pickDailyTask, type PickResult } from './src/services/dailyPick';
 import {
   scheduleAlarm,
   initAlarmService,
   restoreAlarmsOnAppStart,
   setOnAlarmFireCallback,
-  fireImmediateNotification,
-  fireDelayedNotification,
-  getScheduledAlarms,
-  cancelAllAlarms,
   stopAlarmSound,
   ALARM_SOUND_SETTING_KEY,
   addNativeAlarmListener,
-  canShowFullScreenAlarm,
   openFullScreenAlarmSettings,
-  canOpenWakeScreenOverLockScreen,
   openDisplayOverAppsSettings,
 } from './src/services/alarm';
 import { scheduleBedtimeReminder, cancelBedtimeReminder } from './src/services/bedtime';
-import {
-  initSubscriptionService,
-  getSubscriptionStatus,
-  type SubscriptionTier,
-} from './src/services/subscription';
+import { initSubscriptionService, getSubscriptionStatus, type SubscriptionTier } from './src/services/subscription';
+import { openAppSettings } from './src/services/systemSettings';
+import { useLockScreenAccess } from './src/hooks/useLockScreenAccess';
+import { navigationRef, navigate, goBack, type RootStackParamList } from './src/navigation/navigation';
+import { HomeScreen } from './src/screens/HomeScreen';
 import { TaskRevealScreen } from './src/screens/TaskRevealScreen';
 import { VerificationScreen } from './src/screens/VerificationScreen';
 import { SuccessScreen } from './src/screens/SuccessScreen';
@@ -85,33 +58,31 @@ import { AlarmsListScreen } from './src/screens/AlarmsListScreen';
 import { EditAlarmScreen } from './src/screens/EditAlarmScreen';
 import { HistoryScreen } from './src/screens/HistoryScreen';
 import { PremiumScreen } from './src/screens/PremiumScreen';
-import { StreakHistoryDots } from './src/components/StreakHistoryDots';
-import { OnboardingCard } from './src/components/OnboardingCard';
 import { OnboardingFlow } from './src/screens/OnboardingFlow';
 import { WakeUpScreen } from './src/screens/WakeUpScreen';
-import { colors, radius, spacing, typography, themeEmoji } from './src/theme';
-import { getTodayAffirmation } from './src/data/affirmations';
+import { LoadingView, StartupErrorView } from './src/components/StartupStatus';
 import {
   initAnalytics,
   trackEvent,
   trackAlarmScheduled,
   trackTaskCompleted,
   trackTaskSkipped,
-  trackTaskSnoozed
+  trackTaskSnoozed,
 } from './src/services/analytics';
 
-export const navigationRef = createNavigationContainerRef<any>();
-const Stack = createNativeStackNavigator();
+const Stack = createNativeStackNavigator<RootStackParamList>();
+
+const SNOOZE_MINUTES = 5;
 
 export default function App() {
   const [loading, setLoading] = useState(true);
-  
+  const [error, setError] = useState<string | null>(null);
+
   const [pick, setPick] = useState<PickResult | null>(null);
   const [tomorrowPick, setTomorrowPick] = useState<PickResult | null>(null);
   const [streak, setStreak] = useState<Streak | null>(null);
   const [chains, setChains] = useState<HabitChain[]>([]);
   const [history, setHistory] = useState<DayHistory[]>([]);
-  const [error, setError] = useState<string | null>(null);
   const [nextAlarm, setNextAlarm] = useState<NextAlarm | null>(null);
   const [alarmStatus, setAlarmStatus] = useState<AlarmSyncResult['status'] | null>(null);
   const [currentHistoryId, setCurrentHistoryId] = useState<number | null>(null);
@@ -123,24 +94,10 @@ export default function App() {
   const [bedtime, setBedtime] = useState<string>('22:30');
   const [bedtimeEnabled, setBedtimeEnabled] = useState<boolean>(false);
   const [subscriptionTier, setSubscriptionTier] = useState<SubscriptionTier>('free');
-  const [alarmSoundHelpDismissed, setAlarmSoundHelpDismissed] = useState(false);
-  // Android 14+: can the alarm open full screen over the lock screen?
-  const [fullScreenOk, setFullScreenOk] = useState(true);
-  // Android: "Display over other apps", the reliable route on OriginOS/MIUI.
-  const [overlayOk, setOverlayOk] = useState(true);
+  const [alarmHelpDismissed, setAlarmHelpDismissed] = useState(false);
 
-  const refreshLockScreenAccess = async () => {
-    const [fullScreen, overlay] = await Promise.all([canShowFullScreenAlarm(), canOpenWakeScreenOverLockScreen()]);
-    setFullScreenOk(fullScreen);
-    setOverlayOk(overlay);
-    return { fullScreen, overlay };
-  };
+  const lockScreen = useLockScreenAccess();
 
-  // Send the user to whichever lock-screen permission is still missing.
-  const onFixLockScreenAccess = async () => {
-    if (!overlayOk) await openDisplayOverAppsSettings();
-    else await openFullScreenAlarmSettings();
-  };
   // A ringing alarm that asked for the wake screen before navigation was ready
   // (during startup the loading screen is shown, so navigate() would no-op).
   const pendingWakeRef = useRef(false);
@@ -152,15 +109,6 @@ export default function App() {
       pendingWakeRef.current = true;
     }
   };
-
-  // Re-check full-screen access whenever the user comes back to the app
-  // (for example from the system settings screen).
-  useEffect(() => {
-    const sub = AppState.addEventListener('change', async (state) => {
-      if (state === 'active') await refreshLockScreenAccess();
-    });
-    return () => sub.remove();
-  }, []);
 
   // An alarm that fires while the app is already open (warm start).
   useEffect(() => addNativeAlarmListener(goToWake), []);
@@ -174,7 +122,10 @@ export default function App() {
     Inter_600SemiBold,
   });
 
-  // Bootstrap
+  const pickFor = (tier: SubscriptionTier, theme: string | null) =>
+    pickDailyTask({ tier, theme: theme ?? undefined });
+
+  // Startup
   useEffect(() => {
     (async () => {
       try {
@@ -182,71 +133,56 @@ export default function App() {
         trackEvent('App_Open');
         await openDatabase();
         await initAlarmService();
-        // Register the alarm-fire callback so when any mechanism fires the
-        // alarm (JS timer, expo-notifications, native AlarmManager), we
-        // navigate to WakeUpScreen — which is the only screen that calls
-        // stopAlarmSound() when the user completes the task.
+        // Whatever fires the alarm (native AlarmManager, expo-notifications or a
+        // JS timer) opens the wake screen, the only screen that stops the sound
+        // once the ritual is done.
         setOnAlarmFireCallback(() => goToWake());
-        // Recovery net: fire missed alarms + re-schedule pending ones
-        // from the SQLite queue + check for cold-start alarm fired by the
-        // native module while the app was killed.
+        // Recovery: handle missed alarms, re-queue pending ones, and detect an
+        // alarm the native module fired while the app was closed.
         const restore = await restoreAlarmsOnAppStart();
         if (restore.missed > 0 || restore.rescheduled > 0 || restore.coldStartFired) {
-          console.log(`[bootstrap] alarm recovery: missed=${restore.missed}, rescheduled=${restore.rescheduled}, coldStartFired=${restore.coldStartFired}`);
+          console.log(
+            `[bootstrap] alarm recovery: missed=${restore.missed}, rescheduled=${restore.rescheduled}, coldStartFired=${restore.coldStartFired}`
+          );
         }
-        // The native alarm fired while the app was closed and is ringing now:
-        // open the wake screen as soon as navigation is ready (see onReady).
-        if (restore.coldStartFired) {
-          goToWake();
-        }
-        await refreshLockScreenAccess();
+        // Ringing now: open the wake screen as soon as navigation is ready.
+        if (restore.coldStartFired) goToWake();
+        await lockScreen.refresh();
         await initSubscriptionService();
-        const subStatus = await getSubscriptionStatus();
-        setSubscriptionTier(subStatus.tier);
+        const { tier } = await getSubscriptionStatus();
+        setSubscriptionTier(tier);
         const theme = await getSetting('preferred_theme');
         setPreferredTheme(theme);
-        const sound = await getSetting(ALARM_SOUND_SETTING_KEY);
-        setSelectedSound(sound ?? 'default');
-        const bt = await getSetting('bedtime');
-        setBedtime(bt ?? '22:30');
-        const btEnabled = await getSetting('bedtime_enabled');
-        setBedtimeEnabled(btEnabled === '1');
-        const alarmHelpDismissed = await getSetting('alarm_sound_help_dismissed');
-        setAlarmSoundHelpDismissed(alarmHelpDismissed === '1');
-        const result = await pickDailyTask({ tier: subStatus.tier, theme: theme ?? undefined });
-        setPick(result);
+        setSelectedSound((await getSetting(ALARM_SOUND_SETTING_KEY)) ?? 'default');
+        setBedtime((await getSetting('bedtime')) ?? '22:30');
+        setBedtimeEnabled((await getSetting('bedtime_enabled')) === '1');
+        setAlarmHelpDismissed((await getSetting('alarm_sound_help_dismissed')) === '1');
+        const today = await pickFor(tier, theme);
+        setPick(today);
         const s = await getStreak();
         setStreak(s);
-        const c = await getAllChains();
-        setChains(c);
-        const h = await getStreakHistory(7);
-        setHistory(h);
+        setChains(await getAllChains());
+        setHistory(await getStreakHistory(7));
         // Make sure the OS has the next alarm queued. No permission prompt here:
         // the home screen shows a clear "Allow" action if it's needed.
-        applySyncResult(await syncAlarms(result.task));
-        // Onboarding is for people who haven't finished it, not for anyone with
-        // zero completed rituals, and a ringing alarm always takes priority.
+        applySyncResult(await syncAlarms(today.task));
+        // Onboarding is for people who haven't finished it, and a ringing alarm
+        // always takes priority.
         const onboarded = (await getSetting('onboarding_complete')) === '1' || s.totalCompleted > 0;
-        if (!onboarded && !restore.coldStartFired) {
-          setShowOnboarding(true);
-        }
-        const tomorrow = await pickDailyTask({ tier: subscriptionTier, theme: theme ?? undefined });
-        setTomorrowPick(tomorrow);
-      } catch (e: any) {
-        setError(e?.message ?? String(e));
+        if (!onboarded && !restore.coldStartFired) setShowOnboarding(true);
+        setTomorrowPick(await pickFor(tier, theme));
+      } catch (e) {
+        setError(errorMessage(e));
       } finally {
         setLoading(false);
       }
     })();
   }, []);
 
-  const refreshData = async () => {
-    const s = await getStreak();
-    setStreak(s);
-    const c = await getAllChains();
-    setChains(c);
-    const h = await getStreakHistory(7);
-    setHistory(h);
+  const refreshProgress = async () => {
+    setStreak(await getStreak());
+    setChains(await getAllChains());
+    setHistory(await getStreakHistory(7));
   };
 
   function applySyncResult(result: AlarmSyncResult) {
@@ -279,19 +215,16 @@ export default function App() {
     if (!pick) return;
     const result = await syncAlarms(pick.task, { askPermission: true });
     applySyncResult(result);
-    if (result.status === 'needs-permission') {
-      await onOpenNotificationSettings();
-    }
+    if (result.status === 'needs-permission') await openAppSettings();
   };
 
   const onRevealNow = async () => {
     if (!pick) return;
     try {
-      const historyId = await recordAlarmFire(pick.task.id, new Date().toISOString());
-      setCurrentHistoryId(historyId);
-      navigationRef.isReady() && navigationRef.navigate('Reveal');
-    } catch (e: any) {
-      setError(e?.message ?? String(e));
+      setCurrentHistoryId(await recordAlarmFire(pick.task.id, new Date().toISOString()));
+      navigate('Reveal');
+    } catch (e) {
+      setError(errorMessage(e));
     }
   };
 
@@ -303,15 +236,9 @@ export default function App() {
       // be no history row yet; without one the completion was silently dropped.
       const historyId = currentHistoryId ?? (await recordAlarmFire(pick.task.id, now));
       await recordCompletion(historyId, now, 'completed', verificationData);
-      trackTaskCompleted({
-        taskTheme: pick.task.theme,
-        verificationMode: pick.task.verification,
-      });
-      // The task is genuinely verified done — stop the alarm sound NOW.
-      // This is the ONLY place the alarm is stopped on the "complete" path.
-      // The user could have tapped "I'm doing it" on WakeUpScreen long ago
-      // and we kept the sound going all the way through the verification
-      // flow to prevent them from cheating.
+      trackTaskCompleted({ taskTheme: pick.task.theme, verificationMode: pick.task.verification });
+      // The ritual is verified done: this is the only place the "complete" path
+      // stops the alarm, so it keeps ringing through verification.
       await stopAlarmSound();
 
       const next = nextStreak(streak, localDateKey());
@@ -324,21 +251,15 @@ export default function App() {
       await updateStreak(updated);
       setLastStreakCount(next.currentStreak);
       setStreak({ ...streak, ...updated });
-      // Update habit chain for this theme
-      const chainResult = await updateHabitChain(pick.task.theme);
-      if (chainResult.justCompleted) {
-        // Could trigger a special celebration for chain completion
-        // For now, just refresh — the success screen will show the streak update
-      }
-      await refreshData();
+      await updateHabitChain(pick.task.theme);
+      await refreshProgress();
       setPick(tomorrowPick);
-      const newTomorrow = await pickDailyTask({ tier: subscriptionTier, theme: preferredTheme ?? undefined });
-      setTomorrowPick(newTomorrow);
+      setTomorrowPick(await pickFor(subscriptionTier, preferredTheme));
       // Queue the next ring (tomorrow, next weekday...) with tomorrow's ritual.
       await resyncAlarms(false, (tomorrowPick ?? pick).task);
-      navigationRef.isReady() && navigationRef.navigate('Success');
-    } catch (e: any) {
-      setError(e?.message ?? String(e));
+      navigate('Success');
+    } catch (e) {
+      setError(errorMessage(e));
     }
   };
 
@@ -347,118 +268,40 @@ export default function App() {
       try {
         await recordCompletion(currentHistoryId, new Date().toISOString(), 'skipped');
         trackTaskSkipped({ taskTheme: pick?.task.theme ?? 'unknown' });
-      } catch {}
+      } catch {
+        // Recording the skip is best effort; silencing the alarm is not.
+      }
     }
-    // User gave up on the task — silence the alarm so it doesn't keep
-    // ringing while they go back to the home screen.
     await stopAlarmSound();
     await resyncAlarms(false);
-    navigationRef.isReady() && navigationRef.navigate('Home');
+    navigate('Home');
+  };
+
+  const onSnooze = () => {
+    if (!pick) return;
+    const snoozeFor = new Date(Date.now() + SNOOZE_MINUTES * 60 * 1000);
+    scheduleAlarm(snoozeFor, pick.task.id, pick.task.text, 0).catch((e) => console.error(e));
+    trackTaskSnoozed({ taskTheme: pick.task.theme, snoozeDurationMins: SNOOZE_MINUTES });
+    navigate('Home');
+    Alert.alert('Snoozed', `Back to sleep. We'll try again in ${SNOOZE_MINUTES} minutes.`);
   };
 
   const onDone = async () => {
-    navigationRef.isReady() && navigationRef.navigate('Home');
+    navigate('Home');
     setCurrentHistoryId(null);
-    await refreshData();
+    await refreshProgress();
   };
 
-  // Open the app's notification settings page (deep-link).
-  // On Android this lands on Settings → Apps → Morning Ritual → Notifications
-  // where the user can enable the "Ringtone" toggle. The Ringtone toggle is
-  // disabled by default on many Chinese OEM skins (iQOO, Vivo, Xiaomi) and
-  // must be turned on for notification sounds to play.
-  const onOpenNotificationSettings = async () => {
-    try {
-      if (Platform.OS === 'android') {
-        // Linking.openSettings() opens the app's settings page
-        await Linking.openSettings();
-      } else {
-        await Linking.openURL('app-settings:');
-      }
-    } catch (e: any) {
-      Alert.alert('Could not open Settings', 'Please open Settings → Apps → Morning Ritual → Notifications manually.');
-    }
+  const onDismissAlarmHelp = async () => {
+    await setSetting('alarm_sound_help_dismissed', '1');
+    setAlarmHelpDismissed(true);
   };
 
-  // iQOO / Vivo / Xiaomi: walk the user through the auto-start + battery
-  // optimization toggles required for the alarm to fire when the phone is
-  // locked. There's no public Intent for these on Chinese OEM skins, so we
-  // open the app settings page and show a step-by-step guide.
-  const onShowIQOOSetupGuide = () => {
-    Alert.alert(
-      'Make alarms fire on lock screen',
-      "iQOO / Vivo / Xiaomi aggressively kill background apps. To make sure the alarm fires when your phone is locked:\n\n" +
-      "1. Settings → Apps → Morning Ritual → Auto-launch → ON\n" +
-      "2. Settings → Apps → Morning Ritual → Battery → Unrestricted / Don't optimize\n" +
-      "3. Settings → Apps → Morning Ritual → Notifications → enable Ringtone\n\n" +
-      "These are 3 quick toggles. Tap 'Open settings' to jump there now.",
-      [
-        { text: 'Open settings', onPress: onOpenNotificationSettings },
-        { text: 'Got it', style: 'cancel' },
-      ]
-    );
-  };
-
-  // --- DEBUG: notification isolation tests ---
-  const onTestImmediate = async () => {
-    try {
-      await fireImmediateNotification();
-    } catch (e: any) {
-      Alert.alert('Immediate test failed', e?.message ?? String(e));
-    }
-  };
-  const onTestDelayed = async () => {
-    try {
-      await fireDelayedNotification(10);
-      Alert.alert('Test scheduled', 'Should fire in 10s. Keep the app open or in background.');
-    } catch (e: any) {
-      Alert.alert('Delayed test failed', e?.message ?? String(e));
-    }
-  };
-  const onTestMinute = async () => {
-    try {
-      await fireDelayedNotification(60);
-      Alert.alert('Test scheduled', 'Should fire in 60s. Check the phone in 1 min.');
-    } catch (e: any) {
-      Alert.alert('60s test failed', e?.message ?? String(e));
-    }
-  };
-  const onListScheduled = async () => {
-    try {
-      const all = await getScheduledAlarms();
-      if (all.length === 0) {
-        Alert.alert('No scheduled alarms', 'Nothing pending. Schedule one and check again.');
-      } else {
-        const summary = all
-          .map(
-            (n) =>
-              `• ${n.identifier.slice(-8)}  →  ${new Date(n.fireAt).toLocaleTimeString()}\n   "${n.taskText}..."  ${n.fired ? '✓ fired' : '⏳ pending'}`
-          )
-          .join('\n\n');
-        Alert.alert(`${all.length} scheduled`, summary);
-      }
-    } catch (e: any) {
-      Alert.alert('List failed', e?.message ?? String(e));
-    }
-  };
-  const onCancelAll = async () => {
-    try {
-      await cancelAllAlarms();
-      Alert.alert('Cancelled', 'All scheduled alarms cleared.');
-    } catch (e: any) {
-      Alert.alert('Cancel failed', e?.message ?? String(e));
-    }
-  };
-
-  // Settings handlers
   const onSaveThemePreference = async (theme: string | null) => {
     setPreferredTheme(theme);
-    if (theme) await setSetting('preferred_theme', theme);
-    else await setSetting('preferred_theme', '');
-    const result = await pickDailyTask({ tier: subscriptionTier, theme: theme ?? undefined });
-    setPick(result);
-    const tomorrow = await pickDailyTask({ tier: subscriptionTier, theme: theme ?? undefined });
-    setTomorrowPick(tomorrow);
+    await setSetting('preferred_theme', theme ?? '');
+    setPick(await pickFor(subscriptionTier, theme));
+    setTomorrowPick(await pickFor(subscriptionTier, theme));
   };
 
   const onSaveSound = async (soundId: string) => {
@@ -471,303 +314,80 @@ export default function App() {
     setBedtimeEnabled(enabled);
     await setSetting('bedtime', time);
     await setSetting('bedtime_enabled', enabled ? '1' : '0');
-    // Reschedule the bedtime reminder
     await cancelBedtimeReminder();
     if (enabled) {
       try {
         await scheduleBedtimeReminder(time);
       } catch (e) {
-        // ignore
+        console.warn(`[bedtime] could not schedule: ${errorMessage(e)}`);
       }
     }
   };
 
   const onResetAllData = async () => {
     await resetAllData();
-    const s = await getStreak();
-    setStreak(s);
-    const result = await pickDailyTask({ tier: subscriptionTier, theme: preferredTheme ?? undefined });
-    setPick(result);
+    setStreak(await getStreak());
+    setPick(await pickFor(subscriptionTier, preferredTheme));
     setTomorrowPick(null);
-    navigationRef.isReady() && navigationRef.navigate('Home');
+    navigate('Home');
     setShowOnboarding(true);
   };
 
-  // --- Render branches ---
-
-  if (!fontsLoaded || loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={colors.sunrise} />
-        <Text style={styles.subtext}>Waking up the database…</Text>
-        <StatusBar style="auto" />
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.errorEmoji}>😕</Text>
-        <Text style={styles.errorTitle}>Something went wrong</Text>
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity
-          style={styles.retryButton}
-          onPress={async () => {
-            setLoading(true);
-            setError(null);
-            try {
-              await openDatabase();
-              await restoreAlarmsOnAppStart();
-              const result = await pickDailyTask({
-                tier: subscriptionTier,
-                theme: preferredTheme ?? undefined,
-              });
-              setPick(result);
-              const s = await getStreak();
-              setStreak(s);
-            } catch (e: any) {
-              setError(e?.message ?? String(e));
-            } finally {
-              setLoading(false);
-            }
-          }}
-        >
-          <Text style={styles.retryButtonText}>Try again</Text>
-        </TouchableOpacity>
-        <StatusBar style="auto" />
-      </View>
-    );
-  }
-
-  if (!pick || !streak) return null;
-
-  
-  const HomeScreen = () => {
-    const themeEmojiStr = themeEmoji(pick.task.theme);
-    return (
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
-        <View style={styles.headerRow}>
-          <View>
-            <Text style={styles.greeting}>Good morning</Text>
-            <Text style={styles.appName}>Morning Ritual</Text>
-          </View>
-          <View style={styles.headerActions}>
-            {streak.currentStreak > 0 && (
-              <View style={styles.streakBadge}>
-                <Text style={styles.streakFlame}>🔥</Text>
-                <Text style={styles.streakNum}>{streak.currentStreak}</Text>
-              </View>
-            )}
-            <TouchableOpacity style={styles.iconBtn} onPress={() => navigationRef.isReady() && navigationRef.navigate('History')}>
-              <Feather name="clock" size={24} color={colors.ink} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.iconBtn} onPress={() => navigationRef.isReady() && navigationRef.navigate('Settings')}>
-              <Feather name="settings" size={24} color={colors.ink} />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {showOnboarding ? null : (
-          <OnboardingCard onDismiss={() => setShowOnboarding(false)} />
-        )}
-
-        {Platform.OS === 'android' && alarmSoundHelpDismissed ? null : (
-          Platform.OS === 'android' ? (
-            <TouchableOpacity
-              style={styles.alarmHelpCard}
-              onPress={onShowIQOOSetupGuide}
-              activeOpacity={0.85}
-            >
-              <View style={{ flex: 1 }}>
-                <Text style={styles.alarmHelpTitle}>⏰ Make sure your alarm fires</Text>
-                <Text style={styles.alarmHelpBody}>
-                  Some Android phones (iQOO, Vivo, Xiaomi) kill background apps.
-                  Tap for 3 quick toggles so the alarm fires when your phone
-                  is locked.
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={styles.alarmHelpDismiss}
-                onPress={async () => {
-                  await setSetting('alarm_sound_help_dismissed', '1');
-                  setAlarmSoundHelpDismissed(true);
-                }}
-                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              >
-                <Text style={styles.alarmHelpDismissText}>✕</Text>
-              </TouchableOpacity>
-            </TouchableOpacity>
-          ) : null
-        )}
-
-        <View style={styles.affirmationCard}>
-          <Text style={styles.affirmationLabel}>TODAY'S REFLECTION</Text>
-          <Text style={styles.affirmationText}>{getTodayAffirmation()}</Text>
-        </View>
-
-        <StreakHistoryDots days={history} streakCount={streak.currentStreak} />
-
-        {chains.some((c) => c.chainCount > 0) ? (
-          <View style={styles.chainCard}>
-            {chains
-              .filter((c) => c.chainCount > 0)
-              .sort((a, b) => b.chainCount - a.chainCount)
-              .slice(0, 2)
-              .map((c) => (
-                <View key={c.theme} style={styles.chainRow}>
-                  <Text style={styles.chainEmoji}>
-                    {c.theme === 'body' ? '🧘' : c.theme === 'mind' ? '🧠' : c.theme === 'brain' ? '💡' : '🎨'}
-                  </Text>
-                  <View style={styles.chainText}>
-                    <Text style={styles.chainTitle}>
-                      {c.chainCount}-day {c.theme} chain
-                      {c.earnedBadge ? ' 🏆' : ''}
-                    </Text>
-                    <Text style={styles.chainProgress}>
-                      {c.earnedBadge
-                        ? 'Champion — earned!'
-                        : c.chainCount >= 7
-                        ? 'Almost there!'
-                        : `${7 - c.chainCount} to go for the Champion badge`}
-                    </Text>
-                  </View>
-                  <View style={styles.chainDots}>
-                    {[1, 2, 3, 4, 5, 6, 7].map((day) => (
-                      <View
-                        key={day}
-                        style={[
-                          styles.chainDot,
-                          day <= c.chainCount && styles.chainDotFilled,
-                        ]}
-                      />
-                    ))}
-                  </View>
-                </View>
-              ))}
-          </View>
-        ) : null}
-
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardLabel}>Today's task</Text>
-            <Text style={styles.cardTheme}>
-              {themeEmojiStr} {pick.task.theme}
-            </Text>
-          </View>
-          <Text style={styles.cardText}>{pick.task.text}</Text>
-          <Text style={styles.cardMeta}>
-            {pick.task.verification === 'media' ? '📷 ' + pick.task.mediaType : '✓ check-in'} · ~{pick.task.estSeconds}s
-          </Text>
-        </View>
-
-        {/* Alarm status: always says whether the OS really has an alarm queued. */}
-        <View style={[styles.alarmRow, alarmStatus === 'needs-permission' || alarmStatus === 'error' ? styles.alarmRowWarn : null]}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.alarmLabel}>
-              {alarmStatus === 'scheduled' && nextAlarm
-                ? 'Next alarm'
-                : alarmStatus === 'needs-permission'
-                ? "Your alarm can't ring yet"
-                : alarmStatus === 'error'
-                ? "Couldn't set your alarm"
-                : 'No alarm on'}
-            </Text>
-            <Text style={styles.alarmValue}>
-              {alarmStatus === 'scheduled' && nextAlarm
-                ? describeNextAlarm(nextAlarm.date)
-                : alarmStatus === 'needs-permission'
-                ? 'Allow notifications so it can wake you.'
-                : alarmStatus === 'error'
-                ? 'Tap Retry, or check alarm permissions in Settings.'
-                : 'Add one to wake up with a ritual.'}
-            </Text>
-          </View>
-          {alarmStatus === 'needs-permission' ? (
-            <TouchableOpacity style={styles.smallBtn} onPress={onFixAlarmPermission} accessibilityRole="button">
-              <Text style={styles.smallBtnText}>Allow</Text>
-            </TouchableOpacity>
-          ) : alarmStatus === 'error' ? (
-            <TouchableOpacity style={styles.smallBtn} onPress={() => resyncAlarms(true)} accessibilityRole="button">
-              <Text style={styles.smallBtnText}>Retry</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={styles.timeButton}
-              onPress={() => navigationRef.isReady() && navigationRef.navigate('AlarmsList')}
-              accessibilityRole="button"
-            >
-              <Text style={styles.timeButtonText}>{nextAlarm ? 'Edit' : 'Add alarm'}</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {alarmStatus === 'scheduled' && (!overlayOk || !fullScreenOk) ? (
-          <View style={[styles.alarmRow, styles.alarmRowWarn]}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.alarmLabel}>One more permission</Text>
-              <Text style={styles.alarmValue}>Let your alarm open over the lock screen.</Text>
-            </View>
-            <TouchableOpacity style={styles.smallBtn} onPress={onFixLockScreenAccess} accessibilityRole="button">
-              <Text style={styles.smallBtnText}>Allow</Text>
-            </TouchableOpacity>
-          </View>
-        ) : null}
-
-        <TouchableOpacity style={styles.cta} onPress={onRevealNow} activeOpacity={0.85}>
-          <Text style={styles.ctaText}>Reveal today's task</Text>
-        </TouchableOpacity>
-
-        <View style={styles.statsRow}>
-          <View style={styles.statBox}>
-            <Text style={styles.statValue}>{streak.currentStreak}</Text>
-            <Text style={styles.statLabel}>Current</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statValue}>{streak.longestStreak}</Text>
-            <Text style={styles.statLabel}>Longest</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statValue}>{streak.totalCompleted}</Text>
-            <Text style={styles.statLabel}>Total</Text>
-          </View>
-        </View>
-
-        {__DEV__ ? (
-        <>
-        <Text style={styles.footer}>
-          Pool: {pick.candidatePoolSize} tasks
-          {pick.excludedByRepeat > 0 ? ` · ${pick.excludedByRepeat} excluded for variety` : ''}
-        </Text>
-
-        <View style={styles.debugBox}>
-          <Text style={styles.debugTitle}>🔧 Notification Debug</Text>
-          <Text style={styles.debugHelp}>
-            Tap these to figure out which part is broken.
-          </Text>
-          <TouchableOpacity style={styles.debugBtn} onPress={onTestImmediate} activeOpacity={0.85}>
-            <Text style={styles.debugBtnText}>🔔 Test notification NOW</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.debugBtn} onPress={onTestDelayed} activeOpacity={0.85}>
-            <Text style={styles.debugBtnText}>⏰ Test in 10 seconds</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.debugBtn} onPress={onTestMinute} activeOpacity={0.85}>
-            <Text style={styles.debugBtnText}>⏱️ Test in 60 seconds (matches real alarm)</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.debugBtn} onPress={onListScheduled} activeOpacity={0.85}>
-            <Text style={styles.debugBtnText}>📋 List scheduled alarms</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.debugBtn} onPress={onCancelAll} activeOpacity={0.85}>
-            <Text style={styles.debugBtnText}>🗑️ Cancel all alarms</Text>
-          </TouchableOpacity>
-        </View>
-        </>
-        ) : null}
-
-        <StatusBar style="auto" />
-      </ScrollView>
-    );
+  const onOnboardingComplete = async () => {
+    const theme = await getSetting('preferred_theme');
+    setPreferredTheme(theme);
+    const result = await pickFor(subscriptionTier, theme);
+    setPick(result);
+    // Onboarding just created the first alarm: schedule it now and ask for
+    // notification permission while the user is engaged.
+    await resyncAlarms(true, result.task);
+    setShowOnboarding(false);
+    // Android: ask in context for what lets the alarm open over the lock
+    // screen. "Display over other apps" first: some skins (OriginOS, MIUI)
+    // reject full-screen notifications even when allowed, and report them as
+    // allowed.
+    const access = await lockScreen.refresh();
+    if (!access.overlay) {
+      Alert.alert(
+        'Let your alarm wake you properly',
+        'Allow Morning Ritual to display over other apps. When your alarm rings, it can then open your morning ritual over the lock screen instead of hiding in your notifications.',
+        [
+          { text: 'Not now', style: 'cancel' },
+          { text: 'Allow', onPress: () => void openDisplayOverAppsSettings() },
+        ]
+      );
+    } else if (!access.fullScreen) {
+      Alert.alert(
+        'Let your alarm wake you properly',
+        'Allow Morning Ritual to show full-screen notifications, so your alarm opens over the lock screen instead of hiding in your notifications.',
+        [
+          { text: 'Not now', style: 'cancel' },
+          { text: 'Allow', onPress: () => void openFullScreenAlarmSettings() },
+        ]
+      );
+    }
   };
+
+  const onRetryStartup = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await openDatabase();
+      await restoreAlarmsOnAppStart();
+      setPick(await pickFor(subscriptionTier, preferredTheme));
+      setStreak(await getStreak());
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // --- Render ---
+
+  if (!fontsLoaded || loading) return <LoadingView />;
+  if (error) return <StartupErrorView message={error} onRetry={onRetryStartup} />;
+  if (!pick || !streak) return null;
 
   return (
     <NavigationContainer
@@ -781,87 +401,43 @@ export default function App() {
     >
       <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
         {showOnboarding ? (
-          <Stack.Screen name="Onboarding">
-            {() => (
-              <OnboardingFlow
-                onComplete={async () => {
-                  const theme = await getSetting('preferred_theme');
-                  setPreferredTheme(theme);
-                  const result = await pickDailyTask({
-                    tier: subscriptionTier,
-                    theme: theme ?? undefined,
-                  });
-                  setPick(result);
-                  // Onboarding just created the first alarm: schedule it now and
-                  // ask for notification permission while the user is engaged.
-                  await resyncAlarms(true, result.task);
-                  setShowOnboarding(false);
-                  // Android: ask in context for what lets the alarm open over the
-                  // lock screen. "Display over other apps" first: some skins
-                  // (OriginOS, MIUI) reject full-screen notifications even when
-                  // allowed, and report them as allowed.
-                  const access = await refreshLockScreenAccess();
-                  if (!access.overlay) {
-                    Alert.alert(
-                      'Let your alarm wake you properly',
-                      'Allow Morning Ritual to display over other apps. When your alarm rings, it can then open your morning ritual over the lock screen instead of hiding in your notifications.',
-                      [
-                        { text: 'Not now', style: 'cancel' },
-                        { text: 'Allow', onPress: () => openDisplayOverAppsSettings() },
-                      ]
-                    );
-                  } else if (!access.fullScreen) {
-                    Alert.alert(
-                      'Let your alarm wake you properly',
-                      'Allow Morning Ritual to show full-screen notifications, so your alarm opens over the lock screen instead of hiding in your notifications.',
-                      [
-                        { text: 'Not now', style: 'cancel' },
-                        { text: 'Allow', onPress: () => openFullScreenAlarmSettings() },
-                      ]
-                    );
-                  }
-                }}
-              />
-            )}
-          </Stack.Screen>
+          <Stack.Screen name="Onboarding">{() => <OnboardingFlow onComplete={onOnboardingComplete} />}</Stack.Screen>
         ) : (
           <>
-            <Stack.Screen name="Home" component={HomeScreen} />
-            <Stack.Screen name="Wake" options={{ gestureEnabled: false, animation: 'fade' }}>
+            <Stack.Screen name="Home">
               {() => (
-                <WakeUpScreen
-                  task={pick.task}
-                  onComplete={() => {
-                    navigationRef.isReady() && navigationRef.navigate('Reveal');
-                  }}
-                  onSnooze={() => {
-                    const snoozeFor = new Date(Date.now() + 5 * 60 * 1000);
-                    scheduleAlarm(snoozeFor, pick.task.id, pick.task.text, 0).catch(e => console.error(e));
-                    trackTaskSnoozed({ taskTheme: pick.task.theme, snoozeDurationMins: 5 });
-                    navigationRef.isReady() && navigationRef.navigate('Home');
-                    Alert.alert('Snoozed', "Back to sleep. We'll try again in 5 minutes.");
-                  }}
+                <HomeScreen
+                  pick={pick}
+                  streak={streak}
+                  chains={chains}
+                  history={history}
+                  alarmStatus={alarmStatus}
+                  nextAlarm={nextAlarm}
+                  lockScreenAccessMissing={lockScreen.missing}
+                  alarmHelpDismissed={alarmHelpDismissed}
+                  onDismissAlarmHelp={onDismissAlarmHelp}
+                  onFixAlarmPermission={onFixAlarmPermission}
+                  onRetryAlarm={() => void resyncAlarms(true)}
+                  onFixLockScreenAccess={() => void lockScreen.fix()}
+                  onRevealNow={onRevealNow}
                 />
               )}
+            </Stack.Screen>
+            <Stack.Screen name="Wake" options={{ gestureEnabled: false, animation: 'fade' }}>
+              {() => <WakeUpScreen task={pick.task} onComplete={() => navigate('Reveal')} onSnooze={onSnooze} />}
             </Stack.Screen>
             <Stack.Screen name="Reveal" options={{ gestureEnabled: false }}>
               {() => (
                 <TaskRevealScreen
                   task={pick.task}
-                  onStartVerification={() => navigationRef.isReady() && navigationRef.navigate('Verify')}
+                  onStartVerification={() => navigate('Verify')}
                   onSkip={onSkip}
-                  onSnoozed={() => navigationRef.isReady() && navigationRef.navigate('Home')}
+                  onSnoozed={() => navigate('Home')}
                 />
               )}
             </Stack.Screen>
             <Stack.Screen name="Verify" options={{ gestureEnabled: false }}>
-              {() => (
-                <VerificationScreen
-                  task={pick.task}
-                  onComplete={onComplete}
-                  onCancel={() => navigationRef.isReady() && navigationRef.navigate('Reveal')}
-                />
-              )}
+              {() => <VerificationScreen task={pick.task} onComplete={onComplete} onCancel={() => navigate('Reveal')} />}
             </Stack.Screen>
             <Stack.Screen name="Success" options={{ gestureEnabled: false, animation: 'fade' }}>
               {() => (
@@ -885,24 +461,24 @@ export default function App() {
                   onChangeSound={onSaveSound}
                   onChangeBedtime={onSaveBedtime}
                   onResetAllData={onResetAllData}
-                  onManageAlarms={() => navigationRef.isReady() && navigationRef.navigate('AlarmsList')}
-                  onUpgrade={() => navigationRef.isReady() && navigationRef.navigate('Premium')}
-                  onBack={() => navigationRef.isReady() && navigationRef.goBack()}
+                  onManageAlarms={() => navigate('AlarmsList')}
+                  onUpgrade={() => navigate('Premium')}
+                  onBack={goBack}
                 />
               )}
             </Stack.Screen>
             <Stack.Screen name="AlarmsList" options={{ presentation: 'modal' }}>
               {() => (
                 <AlarmsListScreen
-                  onBack={() => navigationRef.isReady() && navigationRef.goBack()}
+                  onBack={goBack}
                   onChanged={() => resyncAlarms(true)}
                   onCreateAlarm={() => {
                     setEditingAlarmId(null);
-                    navigationRef.isReady() && navigationRef.navigate('EditAlarm');
+                    navigate('EditAlarm');
                   }}
                   onEditAlarm={(id) => {
                     setEditingAlarmId(id);
-                    navigationRef.isReady() && navigationRef.navigate('EditAlarm');
+                    navigate('EditAlarm');
                   }}
                 />
               )}
@@ -911,9 +487,9 @@ export default function App() {
               {() => (
                 <EditAlarmScreen
                   alarmId={editingAlarmId}
-                  onBack={() => navigationRef.isReady() && navigationRef.goBack()}
+                  onBack={goBack}
                   onSave={async () => {
-                    navigationRef.isReady() && navigationRef.goBack();
+                    goBack();
                     // Saving or deleting an alarm schedules (or clears) it straight away.
                     await resyncAlarms(true);
                   }}
@@ -921,18 +497,17 @@ export default function App() {
               )}
             </Stack.Screen>
             <Stack.Screen name="History" options={{ presentation: 'modal' }}>
-              {() => <HistoryScreen onBack={() => navigationRef.isReady() && navigationRef.goBack()} />}
+              {() => <HistoryScreen onBack={goBack} />}
             </Stack.Screen>
             <Stack.Screen name="Premium" options={{ presentation: 'modal' }}>
               {() => (
                 <PremiumScreen
-                  onClose={() => navigationRef.isReady() && navigationRef.goBack()}
+                  onClose={goBack}
                   onPurchased={async () => {
-                    const subStatus = await getSubscriptionStatus();
-                    setSubscriptionTier(subStatus.tier);
-                    const result = await pickDailyTask({ tier: subStatus.tier, theme: preferredTheme ?? undefined });
-                    setPick(result);
-                    navigationRef.isReady() && navigationRef.navigate('Home');
+                    const { tier } = await getSubscriptionStatus();
+                    setSubscriptionTier(tier);
+                    setPick(await pickFor(tier, preferredTheme));
+                    navigate('Home');
                   }}
                 />
               )}
@@ -943,352 +518,3 @@ export default function App() {
     </NavigationContainer>
   );
 }
-
-// Lightweight settings helpers (avoid circular import in db/database)
-async function getSetting(key: string): Promise<string | null> {
-  const { getSetting: g } = await import('./src/db/database');
-  return g(key);
-}
-async function setSetting(key: string, value: string): Promise<void> {
-  const { setSetting: s } = await import('./src/db/database');
-  return s(key, value);
-}
-
-const styles = StyleSheet.create({
-  scroll: {
-    flex: 1,
-    backgroundColor: colors.cream,
-  },
-  container: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xxl,
-    paddingBottom: spacing.xl,
-  },
-  center: {
-    flex: 1,
-    backgroundColor: colors.cream,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.lg,
-  },
-  subtext: {
-    marginTop: spacing.md,
-    color: colors.sand,
-  },
-  errorTitle: {
-    ...typography.heading,
-    color: colors.ink,
-    marginBottom: spacing.md,
-  },
-  errorEmoji: { fontSize: 64, marginBottom: spacing.md },
-  errorText: {
-    color: colors.sand,
-    textAlign: 'center',
-    marginBottom: spacing.lg,
-    paddingHorizontal: spacing.lg,
-  },
-  retryButton: {
-    backgroundColor: colors.sunrise,
-    borderRadius: radius.md,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xl,
-  },
-  retryButtonText: { color: colors.cream, ...typography.bodyBold },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    marginBottom: spacing.lg,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  greeting: {
-    ...typography.body,
-    color: colors.sand,
-  },
-  appName: {
-    ...typography.title,
-    color: colors.ink,
-  },
-  streakBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF3E0',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: radius.full,
-    marginRight: spacing.xs,
-  },
-  streakFlame: {
-    fontSize: 18,
-    marginRight: spacing.xs,
-  },
-  streakNum: {
-    ...typography.bodyBold,
-    color: colors.warning,
-  },
-  iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.card,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: spacing.xs,
-  },
-  iconBtnText: {
-    fontSize: 18,
-  },
-  card: {
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-    marginBottom: spacing.lg,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 3,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  cardLabel: {
-    ...typography.micro,
-    color: colors.sand,
-  },
-  cardTheme: {
-    ...typography.caption,
-    color: colors.sand,
-    textTransform: 'capitalize',
-  },
-  cardText: {
-    ...typography.heading,
-    color: colors.ink,
-    lineHeight: 30,
-    marginBottom: spacing.md,
-  },
-  cardMeta: {
-    ...typography.caption,
-    color: colors.sand,
-  },
-  alarmRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-  },
-  alarmRowWarn: {
-    backgroundColor: '#FFF3E0',
-    borderWidth: 1,
-    borderColor: colors.warning,
-  },
-  alarmLabel: {
-    ...typography.caption,
-    color: colors.sand,
-  },
-  alarmValue: {
-    ...typography.bodyBold,
-    color: colors.ink,
-    marginTop: 2,
-    marginRight: spacing.sm,
-  },
-  timeButton: {
-    ...typography.bodyBold,
-    color: colors.ink,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    backgroundColor: colors.cream,
-    borderRadius: radius.sm,
-    marginRight: spacing.md,
-  },
-  timeButtonText: {
-    ...typography.bodyBold,
-    color: colors.ink,
-  },
-  smallBtn: {
-    backgroundColor: colors.sunrise,
-    borderRadius: radius.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  smallBtnDisabled: {
-    backgroundColor: colors.divider,
-  },
-  smallBtnText: {
-    color: '#fff',
-    ...typography.bodyBold,
-  },
-  scheduledFor: {
-    ...typography.caption,
-    color: colors.sand,
-    textAlign: 'center',
-    marginBottom: spacing.md,
-  },
-  cta: {
-    backgroundColor: colors.sunrise,
-    borderRadius: radius.md,
-    paddingVertical: spacing.md + 2,
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  ctaText: {
-    color: '#fff',
-    ...typography.bodyBold,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginBottom: spacing.lg,
-  },
-  statBox: {
-    flex: 1,
-    backgroundColor: colors.card,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    alignItems: 'center',
-  },
-  statValue: {
-    ...typography.title,
-    color: colors.ink,
-  },
-  statLabel: {
-    ...typography.micro,
-    color: colors.sand,
-    marginTop: spacing.xs,
-  },
-  footer: {
-    ...typography.caption,
-    color: colors.sand,
-    textAlign: 'center',
-  },
-  debugBox: {
-    marginTop: spacing.lg,
-    padding: spacing.md,
-    backgroundColor: '#FFF8E1',
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: '#FFE082',
-  },
-  debugTitle: {
-    ...typography.body,
-    fontWeight: '600',
-    color: '#E65100',
-    marginBottom: spacing.xs,
-  },
-  debugHelp: {
-    ...typography.caption,
-    color: '#795548',
-    marginBottom: spacing.sm,
-  },
-  debugBtn: {
-    backgroundColor: '#FFFFFF',
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.sm,
-    marginBottom: spacing.xs,
-    borderWidth: 1,
-    borderColor: '#FFCC80',
-  },
-  debugBtnText: {
-    ...typography.body,
-    color: '#BF360C',
-    textAlign: 'center',
-  },
-  affirmationCard: {
-    backgroundColor: '#FFF3E0',
-    borderRadius: radius.md,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-    borderWidth: 1,
-    borderColor: '#FFE0B2',
-  },
-  alarmHelpCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF3E0',
-    borderRadius: radius.md,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-    borderWidth: 1,
-    borderColor: '#FFB74D',
-  },
-  alarmHelpTitle: {
-    ...typography.bodyBold,
-    color: colors.ink,
-    marginBottom: 2,
-  },
-  alarmHelpBody: {
-    ...typography.caption,
-    color: colors.sand,
-    lineHeight: 18,
-  },
-  alarmHelpDismiss: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  alarmHelpDismissText: {
-    fontSize: 18,
-    color: colors.sand,
-    fontWeight: '600',
-  },
-  affirmationLabel: {
-    ...typography.micro,
-    color: colors.warning,
-    marginBottom: spacing.xs,
-  },
-  affirmationText: {
-    ...typography.body,
-    color: colors.ink,
-    fontStyle: 'italic',
-    lineHeight: 22,
-  },
-  chainCard: {
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-  },
-  chainRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-  },
-  chainEmoji: {
-    fontSize: 24,
-    marginRight: spacing.sm,
-  },
-  chainText: {
-    flex: 1,
-  },
-  chainTitle: {
-    ...typography.bodyBold,
-    color: colors.ink,
-    textTransform: 'capitalize',
-  },
-  chainProgress: {
-    ...typography.caption,
-    color: colors.sand,
-    marginTop: 2,
-  },
-  chainDots: {
-    flexDirection: 'row',
-    gap: 3,
-  },
-  chainDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.divider,
-  },
-  chainDotFilled: {
-    backgroundColor: colors.sunrise,
-  },
-});

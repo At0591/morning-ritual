@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { colors, radius, spacing, typography } from '../theme';
+import { errorMessage } from '../utils/errors';
 
 interface Props {
   onCaptured: (uri: string) => void;
@@ -62,9 +63,9 @@ export function CameraCapture({ onCaptured }: Props) {
         setState('reviewing');
         onCaptured(photo.uri);
       }
-    } catch (e: any) {
+    } catch (e) {
       setState('error');
-      setErrorMsg(e?.message ?? String(e));
+      setErrorMsg(errorMessage(e));
     }
   };
 

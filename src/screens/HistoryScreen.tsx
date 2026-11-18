@@ -137,7 +137,10 @@ export function HistoryScreen({ onBack }: Props) {
                   {entry.verificationData?.kind === 'audio' && entry.verificationData.uri ? (
                     <TouchableOpacity
                       style={styles.audioRow}
-                      onPress={() => playAudio(entry.verificationData.uri)}
+                      onPress={() => {
+                        const uri = entry.verificationData?.uri;
+                        if (uri) playAudio(uri);
+                      }}
                     >
                       <Text style={styles.audioIcon}>
                         {playingUri === entry.verificationData.uri ? '⏸' : '▶'}

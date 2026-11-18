@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch, Alert } f
 import { Feather } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { colors, radius, spacing, typography } from '../theme';
-import { getDb, Alarm, addAlarm, updateAlarm, deleteAlarm } from '../db/database';
+import { getAlarmById, Alarm, addAlarm, updateAlarm, deleteAlarm } from '../db/database';
 
 interface Props {
   alarmId: string | null; // null means create new
@@ -20,14 +20,14 @@ export function EditAlarmScreen({ alarmId, onBack, onSave }: Props) {
   useEffect(() => {
     if (alarmId) {
       // Load existing
-      getDb().getFirstAsync('SELECT * FROM alarms WHERE id = ?', [alarmId]).then((row: any) => {
-        if (row) {
-          const [hh, mm] = row.time.split(':').map(Number);
+      getAlarmById(alarmId).then((alarm) => {
+        if (alarm) {
+          const [hh, mm] = alarm.time.split(':').map(Number);
           const d = new Date();
           d.setHours(hh, mm, 0, 0);
           setTime(d);
-          setDays(JSON.parse(row.days));
-          setSmartWakeWindow(row.smartWakeWindow);
+          setDays(alarm.days);
+          setSmartWakeWindow(alarm.smartWakeWindow);
         }
       });
     } else {

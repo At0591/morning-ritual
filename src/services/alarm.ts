@@ -42,6 +42,7 @@ import { AlarmScheduler } from '../../modules/alarm-scheduler/src';
 import { getSoundById, DEFAULT_SOUND_ID, SOUND_OPTIONS } from './sounds';
 import { getSetting } from '../db/database';
 import { trackAlarmFired } from './analytics';
+import { errorMessage } from '../utils/errors';
 
 // Must match the key the Settings screen saves to (App.tsx). It used to read
 // 'alarm_sound_id' while Settings saved 'alarm_sound', so the chosen tone was
@@ -71,6 +72,9 @@ export function setOnAlarmFireCallback(
 ): void {
   onAlarmFireCallback = cb;
 }
+
+/** The data attached to alarm notifications scheduled by this service. */
+type AlarmNotificationData = { type?: string; taskId?: string; taskText?: string };
 
 function invokeCallback(taskId: string, taskText: string, source: 'native' | 'js_timer' | 'js_background') {
   trackAlarmFired({ taskId, source });
@@ -295,7 +299,7 @@ export async function initAlarmService(): Promise<void> {
 
   Notifications.setNotificationHandler({
     handleNotification: async (notification) => {
-      const data: any = notification.request.content.data;
+      const data = notification.request.content.data as AlarmNotificationData | undefined;
       if (data?.type === 'alarm') {
         try {
           await playAlarmSound();
@@ -313,9 +317,9 @@ export async function initAlarmService(): Promise<void> {
   // Expo-notifications response listener (fallback for expo-notifications
   // scheduled notifications — the primary path is the native module).
   Notifications.addNotificationResponseReceivedListener((response) => {
-    const data: any = response.notification.request.content.data;
+    const data = response.notification.request.content.data as AlarmNotificationData | undefined;
     if (data?.type === 'alarm') {
-      invokeCallback(data.taskId, data.taskText, 'js_background');
+      invokeCallback(data.taskId ?? 'alarm', data.taskText ?? '', 'js_background');
     }
   });
 
@@ -326,8 +330,8 @@ export async function initAlarmService(): Promise<void> {
       console.log(`[alarm] native onAlarmFire (warm): ${event.taskId}`);
       invokeCallback(event.taskId, event.taskText, 'native');
     });
-  } catch (e: any) {
-    console.warn(`[alarm] failed to attach native alarm listener: ${e?.message ?? e}`);
+  } catch (e) {
+    console.warn(`[alarm] failed to attach native alarm listener: ${errorMessage(e)}`);
   }
 
   initialized = true;
@@ -349,8 +353,8 @@ export async function consumeColdStartAlarm(): Promise<
       // Don't clear here — let the App clear it after the user dismisses.
       return { taskId: last.taskId, taskText: last.taskText };
     }
-  } catch (e: any) {
-    console.warn(`[alarm] consumeColdStartAlarm failed: ${e?.message ?? e}`);
+  } catch (e) {
+    console.warn(`[alarm] consumeColdStartAlarm failed: ${errorMessage(e)}`);
   }
   return null;
 }
@@ -413,8 +417,8 @@ export async function scheduleAlarm(
   try {
     await recordScheduledAlarm({ id, taskId, taskText, fireAt });
     console.log(`[alarm] persisted to SQLite id=${id}`);
-  } catch (e: any) {
-    console.warn(`[alarm] failed to persist alarm: ${e?.message ?? e}`);
+  } catch (e) {
+    console.warn(`[alarm] failed to persist alarm: ${errorMessage(e)}`);
   }
 
   activeAlarmId = id;
@@ -436,8 +440,8 @@ export async function scheduleAlarm(
       await AlarmScheduler.scheduleAlarm({ taskId: id, taskText, triggerAtMillis, preWakeWindowMinutes, soundUri });
       nativeScheduled = true;
       console.log(`[alarm] native alarm scheduled id=${id}, preWake=${preWakeWindowMinutes}m`);
-    } catch (e: any) {
-      console.error(`[alarm] native schedule failed: ${e?.message ?? e}`);
+    } catch (e) {
+      console.error(`[alarm] native schedule failed: ${errorMessage(e)}`);
       // Fall through to JS path below
     }
   }
@@ -464,8 +468,8 @@ export async function scheduleAlarm(
         channelId: ALARM_CHANNEL_ID,
       },
     });
-  } catch (e: any) {
-    console.error(`[alarm] expo-notifications schedule failed: ${e?.message ?? e}`);
+  } catch (e) {
+    console.error(`[alarm] expo-notifications schedule failed: ${errorMessage(e)}`);
   }
 
   // ---- Tertiary: JS setTimeout (foreground / in-app reliability) ----
@@ -486,8 +490,8 @@ export async function scheduleAlarm(
         createdAt: new Date().toISOString(),
         fired: false,
       });
-    } catch (e: any) {
-      console.error(`[alarm] JS timer notification failed: ${e?.message ?? e}`);
+    } catch (e) {
+      console.error(`[alarm] JS timer notification failed: ${errorMessage(e)}`);
     }
   }, delayMs);
 
@@ -596,8 +600,8 @@ export async function restoreAlarmsOnAppStart(): Promise<{
         console.log(`[alarm] firing missed alarm id=${alarm.id}, fireAt=${alarm.fireAt}`);
         await displayAlarmNotification(alarm);
       }
-    } catch (e: any) {
-      console.error(`[alarm] failed to handle missed alarm: ${e?.message ?? e}`);
+    } catch (e) {
+      console.error(`[alarm] failed to handle missed alarm: ${errorMessage(e)}`);
     }
   }
 
@@ -626,8 +630,8 @@ export async function restoreAlarmsOnAppStart(): Promise<{
           triggerAtMillis: fireAt.getTime(),
           preWakeWindowMinutes,
         });
-      } catch (e: any) {
-        console.error(`[alarm] native reschedule failed: ${e?.message ?? e}`);
+      } catch (e) {
+        console.error(`[alarm] native reschedule failed: ${errorMessage(e)}`);
       }
     }
 
@@ -650,8 +654,8 @@ export async function restoreAlarmsOnAppStart(): Promise<{
           channelId: ALARM_CHANNEL_ID,
         },
       });
-    } catch (e: any) {
-      console.error(`[alarm] expo-notifications reschedule failed: ${e?.message ?? e}`);
+    } catch (e) {
+      console.error(`[alarm] expo-notifications reschedule failed: ${errorMessage(e)}`);
     }
 
     rescheduled++;
@@ -666,8 +670,8 @@ export async function restoreAlarmsOnAppStart(): Promise<{
         coldStartFired = true;
         console.log(`[alarm] cold-start fired alarm detected: ${cold.taskId}`);
       }
-    } catch (e: any) {
-      console.warn(`[alarm] cold-start detection failed: ${e?.message ?? e}`);
+    } catch (e) {
+      console.warn(`[alarm] cold-start detection failed: ${errorMessage(e)}`);
     }
   }
 
@@ -728,8 +732,8 @@ export async function fireDelayedNotification(seconds: number): Promise<string> 
         },
         trigger: null,
       });
-    } catch (e: any) {
-      console.error(`[alarm] delayed notification failed: ${e?.message ?? e}`);
+    } catch (e) {
+      console.error(`[alarm] delayed notification failed: ${errorMessage(e)}`);
     }
   }, seconds * 1000);
   return id;
