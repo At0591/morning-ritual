@@ -1,14 +1,50 @@
 // src/db/database.ts
 // SQLite layer for Morning Ritual.
-// Opens DB, runs migrations, seeds from src/data/tasks.json on first launch.
+// Opens DB, runs migrations, seeds the rituals from src/data/rituals.json.
 
 import * as SQLite from 'expo-sqlite';
 import { localDateKey, shiftDateKey } from '../utils/dates';
 import tasksJson from '../data/rituals.json';
+import sourcesJson from '../data/sources.json';
 
 const DB_NAME = 'morning_ritual.db';
 const SCHEMA_VERSION_KEY = 'schema_version';
-const CURRENT_SCHEMA_VERSION = '1';
+// 2: sourced rituals with evidence, sources, variations and safety notes.
+const CURRENT_SCHEMA_VERSION = '2';
+
+// Columns added after version 1; existing installs get them via ALTER TABLE.
+const ADDED_TASK_COLUMNS = ['evidence', 'sources', 'variations', 'safety'];
+
+export type Evidence = 'strong' | 'moderate' | 'early';
+
+export interface Source {
+  key: string;
+  label: string;
+  citation: string;
+  url: string;
+}
+
+const SOURCES = sourcesJson as Record<string, Omit<Source, 'key'>>;
+
+/** Full details for a ritual's source keys (unknown keys are skipped). */
+export function sourcesFor(keys: string[]): Source[] {
+  return keys.filter((k) => SOURCES[k]).map((k) => ({ key: k, ...SOURCES[k] }));
+}
+
+type RitualSeed = {
+  id: string;
+  theme: string;
+  text: string;
+  whyItMatters: string;
+  verification: 'media' | 'checkin';
+  mediaType?: 'photo' | 'video' | 'audio' | null;
+  estSeconds: number;
+  isFree: boolean;
+  evidence?: Evidence;
+  sources?: string[];
+  variations?: string[];
+  safety?: string | null;
+};
 
 // Schema is loaded as a raw string via require() because Metro can't import .sql directly.
 // We use a `?raw` import via expo's assets or a simple fetch.
@@ -30,6 +66,7 @@ export async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
 
   // Apply schema (idempotent — all CREATE TABLE IF NOT EXISTS)
   await db.execAsync(SCHEMA_SQL);
+  await addMissingTaskColumns(db);
 
   // First-run seed
   const currentVersion = await getSetting(SCHEMA_VERSION_KEY);
@@ -52,41 +89,62 @@ export function getDb(): SQLite.SQLiteDatabase {
   return dbInstance;
 }
 
+/** Version-1 installs lack the newer ritual columns; add any that are missing. */
+async function addMissingTaskColumns(db: SQLite.SQLiteDatabase): Promise<void> {
+  for (const column of ADDED_TASK_COLUMNS) {
+    try {
+      await db.execAsync(`ALTER TABLE tasks ADD COLUMN ${column} TEXT`);
+    } catch {
+      // Already there (new installs get it from SCHEMA_SQL).
+    }
+  }
+}
+
 /**
- * Seed the tasks table from the bundled tasks.json.
- * Idempotent (uses INSERT OR REPLACE) so re-seeding after a content update is safe.
+ * Seed the rituals from rituals.json. Existing rows keep their history
+ * (lastShownAt, timesShown); rituals no longer in the file are retired
+ * (isActive = 0), so old placeholder IDs in alarm history stay valid.
  */
 async function seedTasks(db: SQLite.SQLiteDatabase): Promise<void> {
-  const tasks = tasksJson as Array<{
-    id: string;
-    theme: string;
-    text: string;
-    whyItMatters: string;
-    verification: 'media' | 'checkin';
-    mediaType?: 'photo' | 'video' | 'audio' | null;
-    estSeconds: number;
-    isFree: boolean;
-  }>;
+  const rituals = tasksJson as RitualSeed[];
+  const wanted = new Set(rituals.map((r) => r.id));
+  // Read existing rows once (in JS, not per-row SQL) to keep each ritual's history.
+  const existing = await db.getAllAsync<{ id: string; lastShownAt: string | null; timesShown: number }>(
+    'SELECT id, lastShownAt, timesShown FROM tasks'
+  );
+  const history = new Map(existing.map((row) => [row.id, row]));
 
-  for (const t of tasks) {
+  for (const r of rituals) {
+    const prior = history.get(r.id);
     await db.runAsync(
       `INSERT OR REPLACE INTO tasks
-        (id, theme, text, whyItMatters, verification, mediaType, estSeconds, isFree, isActive, lastShownAt, timesShown)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (id, theme, text, whyItMatters, verification, mediaType, estSeconds, isFree, isActive, lastShownAt, timesShown,
+         evidence, sources, variations, safety)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        t.id,
-        t.theme,
-        t.text,
-        t.whyItMatters,
-        t.verification,
-        t.mediaType ?? null,
-        t.estSeconds,
-        t.isFree ? 1 : 0,
-        1,    // isActive
-        null, // lastShownAt
-        0,    // timesShown
+        r.id,
+        r.theme,
+        r.text,
+        r.whyItMatters,
+        r.verification,
+        r.mediaType ?? null,
+        r.estSeconds,
+        r.isFree ? 1 : 0,
+        1,
+        prior?.lastShownAt ?? null,
+        prior?.timesShown ?? 0,
+        r.evidence ?? null,
+        JSON.stringify(r.sources ?? []),
+        JSON.stringify(r.variations ?? []),
+        r.safety ?? null,
       ]
     );
+  }
+
+  for (const row of existing) {
+    if (!wanted.has(row.id)) {
+      await db.runAsync('UPDATE tasks SET isActive = 0 WHERE id = ?', [row.id]);
+    }
   }
 }
 
@@ -111,6 +169,10 @@ export interface Task {
   isActive: boolean;
   lastShownAt: string | null;
   timesShown: number;
+  evidence: Evidence | null;
+  sourceKeys: string[];
+  variations: string[];
+  safety: string | null;
 }
 
 export async function getAllTasks(filters?: {
@@ -442,41 +504,14 @@ export async function resetAllData(): Promise<void> {
       [t]
     );
   }
-  // Re-seed tasks (in case the bundled JSON has changed)
-  const tasks = tasksJson as Array<{
-    id: string;
-    theme: string;
-    text: string;
-    whyItMatters: string;
-    verification: 'media' | 'checkin';
-    mediaType?: 'photo' | 'video' | 'audio' | null;
-    estSeconds: number;
-    isFree: boolean;
-  }>;
+  // Re-seed the rituals from the bundled file
   await db.runAsync('DELETE FROM tasks', []);
-  for (const t of tasks) {
-    await db.runAsync(
-      `INSERT INTO tasks
-        (id, theme, text, whyItMatters, verification, mediaType, estSeconds, isFree, isActive, lastShownAt, timesShown)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        t.id,
-        t.theme,
-        t.text,
-        t.whyItMatters,
-        t.verification,
-        t.mediaType ?? null,
-        t.estSeconds,
-        t.isFree ? 1 : 0,
-        1, null, 0,
-      ]
-    );
-  }
+  await seedTasks(db);
   // Mark schema as current so seedTasks doesn't run again
   const now = new Date().toISOString();
   await db.runAsync(
-    `INSERT OR REPLACE INTO user_settings (key, value, updatedAt) VALUES ('schema_version', '1', ?)`,
-    [now]
+    `INSERT OR REPLACE INTO user_settings (key, value, updatedAt) VALUES (?, ?, ?)`,
+    [SCHEMA_VERSION_KEY, CURRENT_SCHEMA_VERSION, now]
   );
 }
 
@@ -679,7 +714,29 @@ export async function getHistory(limit: number = 50): Promise<HistoryEntry[]> {
 
 // --- Helpers ---
 
-type TaskRow = Omit<Task, 'isFree' | 'isActive'> & { isFree: number; isActive: number };
+type TaskRow = Omit<Task, 'isFree' | 'isActive' | 'evidence' | 'sourceKeys' | 'variations' | 'safety'> & {
+  isFree: number;
+  isActive: number;
+  evidence?: string | null;
+  sources?: string | null;
+  variations?: string | null;
+  safety?: string | null;
+};
+
+/** A JSON array of strings from the DB, or [] if missing or unreadable. */
+function parseStringList(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  try {
+    const value: unknown = JSON.parse(raw);
+    return Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function toEvidence(raw: string | null | undefined): Evidence | null {
+  return raw === 'strong' || raw === 'moderate' || raw === 'early' ? raw : null;
+}
 
 function rowToTask(row: TaskRow): Task {
   return {
@@ -694,6 +751,10 @@ function rowToTask(row: TaskRow): Task {
     isActive: !!row.isActive,
     lastShownAt: row.lastShownAt,
     timesShown: row.timesShown,
+    evidence: toEvidence(row.evidence),
+    sourceKeys: parseStringList(row.sources),
+    variations: parseStringList(row.variations),
+    safety: row.safety ?? null,
   };
 }
 

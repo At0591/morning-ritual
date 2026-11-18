@@ -1,12 +1,14 @@
-// Step 3: one small good thing. Type a line or tap a suggestion; saving it
-// stops the alarm and goes into the journal. Stays dark: the alarm is still on.
-import { useEffect, useState } from 'react';
+// Step 3: one small good thing. Type a line, or tap a prompt to start the
+// sentence and finish it. Saving stops the alarm and goes into the journal.
+// The prompts come from sourced rituals (see services/morningFlow).
+// Stays dark: the alarm is still on.
+import React, { useEffect, useRef, useState } from 'react';
 import { BackHandler, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { cleanJournalText, JOURNAL_MAX_LENGTH } from '../../db/database';
 import { brand, fonts } from '../../theme';
-import { suggestionsFor } from '../../services/morningFlow';
+import { suggestionsFor, type GoodThingPrompt } from '../../services/morningFlow';
 
 interface Props {
   onSave: (line: string) => void;
@@ -14,7 +16,9 @@ interface Props {
 
 export function GoodThingScreen({ onSave }: Props) {
   const [text, setText] = useState('');
-  const [hint, setHint] = useState(false);
+  const [hint, setHint] = useState<string | null>(null);
+  const [starter, setStarter] = useState<string | null>(null);
+  const input = useRef<React.ComponentRef<typeof TextInput>>(null);
   const suggestions = suggestionsFor(new Date());
   const insets = useSafeAreaInsets();
 
@@ -23,10 +27,22 @@ export function GoodThingScreen({ onSave }: Props) {
     return () => back.remove();
   }, []);
 
+  const usePrompt = (p: GoodThingPrompt) => {
+    setText(p.starter);
+    setStarter(p.starter);
+    setHint(null);
+    input.current?.focus();
+  };
+
   const save = () => {
     const line = cleanJournalText(text);
     if (!line) {
-      setHint(true);
+      setHint('Just a few words, or tap a prompt');
+      return;
+    }
+    if (starter && line === cleanJournalText(starter)) {
+      setHint('Finish the sentence in your own words');
+      input.current?.focus();
       return;
     }
     onSave(line);
@@ -39,21 +55,23 @@ export function GoodThingScreen({ onSave }: Props) {
         <Text style={styles.kicker}>You're awake. One last thing.</Text>
         <Text style={styles.title}>What's one small good thing about today?</Text>
         <TextInput
+          ref={input}
           value={text}
           onChangeText={(t) => {
             setText(t);
-            if (hint) setHint(false);
+            if (hint) setHint(null);
           }}
-          placeholder={hint ? 'Just a few words, or tap a suggestion' : 'Write a few words…'}
+          placeholder={'Write a few words…'}
           placeholderTextColor={brand.mist}
           style={styles.input}
           multiline
           maxLength={JOURNAL_MAX_LENGTH}
           accessibilityLabel="Your line for today"
         />
-        {suggestions.map((s) => (
-          <Pressable key={s} onPress={() => setText(s)} style={styles.chip} accessibilityRole="button" accessibilityHint="Fills in this line">
-            <Text style={styles.chipText}>{s}</Text>
+        {hint ? <Text style={styles.hint} accessibilityLiveRegion="polite">{hint}</Text> : null}
+        {suggestions.map((p) => (
+          <Pressable key={p.id} onPress={() => usePrompt(p)} style={styles.chip} accessibilityRole="button" accessibilityHint="Starts the sentence for you to finish">
+            <Text style={styles.chipText}>{p.label}</Text>
           </Pressable>
         ))}
         <View style={styles.spacer} />
@@ -81,6 +99,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12, paddingHorizontal: 14, marginTop: 8, minHeight: 48, justifyContent: 'center',
   },
   chipText: { fontFamily: fonts.read, fontSize: 16, color: brand.white },
+  hint: { fontFamily: fonts.readBold, fontSize: 15, color: brand.amber, marginBottom: 4 },
   spacer: { flex: 1, minHeight: 24 },
   save: { backgroundColor: brand.amber, borderRadius: 18, minHeight: 58, alignItems: 'center', justifyContent: 'center' },
   saveText: { fontFamily: fonts.readBold, fontSize: 18, color: brand.ink },

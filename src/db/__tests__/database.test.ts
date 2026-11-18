@@ -2,6 +2,7 @@
 
 import * as Database from '../database';
 import ritualsJson from '../../data/rituals.json';
+import sourcesJson from '../../data/sources.json';
 
 const THEMES = ['body', 'mind', 'brain', 'creative'];
 
@@ -40,6 +41,35 @@ describe('database', () => {
       expect(ids.has(r.id)).toBe(false);
       ids.add(r.id);
     }
+  });
+
+  test('every ritual has an evidence label, real sources and variations', () => {
+    const sources = sourcesJson as Record<string, { label: string; citation: string; url: string }>;
+    for (const r of ritualsJson) {
+      expect(['strong', 'moderate', 'early']).toContain(r.evidence);
+      expect(r.sources.length).toBeGreaterThan(0);
+      for (const key of r.sources) {
+        expect(sources[key]).toBeDefined();
+        expect(sources[key].url).toMatch(/^https:\/\//);
+      }
+      expect(r.variations.length).toBeGreaterThan(0);
+    }
+  });
+
+  test('the ritual list is balanced across themes (about 10 each)', () => {
+    for (const theme of THEMES) {
+      const n = ritualsJson.filter((r) => r.theme === theme).length;
+      expect(n).toBeGreaterThanOrEqual(7);
+      expect(n).toBeLessThanOrEqual(13);
+    }
+  });
+
+  test('a seeded ritual comes back with its evidence, sources and safety line', async () => {
+    const cold = await Database.getTaskById('b07');
+    expect(cold?.evidence).toBe('moderate');
+    expect(cold?.sourceKeys).toEqual(['S7']);
+    expect(cold?.safety).toMatch(/heart/);
+    expect(Database.sourcesFor(cold?.sourceKeys ?? [])[0].label).toBe('Buijze et al., 2016');
   });
 
   test('streak is initialized with zeros', async () => {

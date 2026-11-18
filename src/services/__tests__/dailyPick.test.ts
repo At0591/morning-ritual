@@ -19,6 +19,10 @@ function makeTask(id: string, theme: string, isFree: boolean, timesShown = 0): T
     isActive: true,
     lastShownAt: null,
     timesShown,
+    evidence: 'moderate',
+    sourceKeys: [],
+    variations: [],
+    safety: null,
   };
 }
 

@@ -1,5 +1,6 @@
 import { splitClock } from '../dates';
-import { suggestionsFor, sunPosition, SUN_TAPS_NEEDED } from '../../services/morningFlow';
+import { GOOD_THING_PROMPTS, suggestionsFor, sunPosition, SUN_TAPS_NEEDED } from '../../services/morningFlow';
+import sourcesJson from '../../data/sources.json';
 
 describe('splitClock', () => {
   const late = new Date(2026, 10, 18, 16, 55);
@@ -28,4 +29,12 @@ describe('morning flow helpers', () => {
     expect(end.left).toBeLessThanOrEqual(400 - 92);
     expect(sunPosition(0, 50, 50, 1)).toEqual({ left: 0, top: 0 });
   });
+});
+
+test('every step-3 prompt has a starter and a real source', () => {
+  const sources = sourcesJson as Record<string, { url: string }>;
+  for (const p of GOOD_THING_PROMPTS) {
+    expect(p.starter.trim().length).toBeGreaterThan(3);
+    expect(sources[p.source]?.url).toMatch(/^https:\/\//);
+  }
 });

@@ -13,21 +13,30 @@ export function sunPosition(taps: number, width: number, height: number, random:
   };
 }
 
-const SUGGESTIONS = [
-  "I'm grateful for my morning coffee",
-  "Today I'll finish the one thing that matters",
-  "I'll call someone I miss",
-  "I'm grateful for a good night's sleep",
-  "Today I'll take a walk outside",
-  "I'll be patient with myself today",
-  "I'm looking forward to lunch with someone",
-  "Today I'll drink enough water",
-  "I'm grateful for someone who helped me this week",
+/**
+ * Step 3 prompts. Each comes from a sourced ritual (the writing ones moved
+ * here from the ritual list): tapping it puts the starter in the box for the
+ * user to finish. `source` is a key into src/data/sources.json.
+ */
+export interface GoodThingPrompt {
+  id: string;
+  label: string;
+  starter: string;
+  source: string;
+}
+
+export const GOOD_THING_PROMPTS: GoodThingPrompt[] = [
+  { id: 'm01', label: "Something I'm grateful for", starter: "I'm grateful for ", source: 'S12' },
+  { id: 'm02', label: 'Something that went well yesterday', starter: 'Yesterday went well when ', source: 'S13' },
+  { id: 'm04', label: 'How I feel right now', starter: 'Right now I feel ', source: 'S15' },
+  { id: 'm08', label: 'Me, a year from now', starter: 'A year from now, I ', source: 'S18' },
+  { id: 'm11', label: "Someone I'll reach out to today", starter: "Today I'll message ", source: 'S34' },
+  { id: 'm13', label: "A person I'm grateful for", starter: "I'm grateful to ", source: 'S12' },
 ];
 
-/** Three suggestions that change each day but stay the same within a day. */
-export function suggestionsFor(date: Date): string[] {
+/** Three prompts that change each day but stay the same within a day. */
+export function suggestionsFor(date: Date): GoodThingPrompt[] {
   const day = Math.floor(new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime() / 86_400_000);
-  const start = (day * 3) % SUGGESTIONS.length;
-  return [0, 1, 2].map((i) => SUGGESTIONS[(start + i) % SUGGESTIONS.length]);
+  const start = (day * 3) % GOOD_THING_PROMPTS.length;
+  return [0, 1, 2].map((i) => GOOD_THING_PROMPTS[(start + i) % GOOD_THING_PROMPTS.length]);
 }

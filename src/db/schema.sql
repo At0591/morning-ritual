@@ -1,8 +1,8 @@
 -- Morning Ritual — SQLite schema
 -- Version 1.1.0
 --
--- 5 tables:
---   1. tasks            — bundled 1000 tasks (seeded from src/data/tasks.json)
+-- Tables:
+--   1. tasks            — the sourced rituals (seeded from src/data/rituals.json)
 --   2. alarm_history    — log of alarm fires (which task, completed/skipped, time)
 --   3. streaks          — daily streak counter (current, longest, last_completed_date)
 --   4. user_settings    — key-value (alarm_time, theme, tier, etc.)
@@ -20,17 +20,21 @@ PRAGMA foreign_keys = ON;
 --   lastShownAt IS NULL → never shown; else timestamp of last reveal
 --   timesShown: lifetime count, used as a tie-breaker in weighted random
 CREATE TABLE IF NOT EXISTS tasks (
-  id              TEXT PRIMARY KEY,         -- e.g., 'body-001'
+  id              TEXT PRIMARY KEY,         -- e.g., 'b01'
   theme           TEXT NOT NULL,            -- 'body' | 'mind' | 'brain' | 'creative'
   text            TEXT NOT NULL,            -- the actual task (1-2 sentences)
-  whyItMatters    TEXT NOT NULL,            -- footnote (research citation or "research shows...")
+  whyItMatters    TEXT NOT NULL,            -- plain-language why, never claiming more than the study
   verification    TEXT NOT NULL,            -- 'media' | 'checkin'
   mediaType       TEXT,                     -- 'photo' | 'video' | 'audio' (NULL for checkin)
   estSeconds      INTEGER NOT NULL DEFAULT 30,
   isFree          INTEGER NOT NULL DEFAULT 0,  -- 0 = premium, 1 = free
   isActive        INTEGER NOT NULL DEFAULT 1,  -- 0 = soft-deleted
   lastShownAt     TEXT,                     -- ISO 8601 timestamp
-  timesShown      INTEGER NOT NULL DEFAULT 0
+  timesShown      INTEGER NOT NULL DEFAULT 0,
+  evidence        TEXT,                     -- 'strong' | 'moderate' | 'early'
+  sources         TEXT,                     -- JSON array of keys into src/data/sources.json
+  variations      TEXT,                     -- JSON array of alternative wordings
+  safety          TEXT                      -- optional safety line shown with the ritual
 );
 
 CREATE INDEX IF NOT EXISTS idx_tasks_theme ON tasks(theme);

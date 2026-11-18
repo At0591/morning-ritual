@@ -4,6 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Task } from '../../db/database';
+import { RitualEvidence } from '../../components/RitualEvidence';
 import { brand, fonts } from '../../theme';
 
 interface Props {
@@ -36,6 +37,7 @@ export function DoneScreen({ line, streakCount, ritual, checkInAt, onRitualDone,
           <Text style={styles.label}>TODAY'S RITUAL · OPTIONAL · ~{ritual.estSeconds}s</Text>
           <Text style={styles.ritualText}>{ritual.text}</Text>
           {ritual.whyItMatters ? <Text style={styles.why}>{ritual.whyItMatters}</Text> : null}
+          <RitualEvidence task={ritual} />
           <View style={styles.row}>
             <Pressable onPress={onRitualDone} style={[styles.btn, styles.primary]} accessibilityRole="button">
               <Text style={styles.primaryText}>Done it</Text>

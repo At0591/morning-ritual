@@ -18,7 +18,11 @@ CREATE TABLE IF NOT EXISTS tasks (
   isFree          INTEGER NOT NULL DEFAULT 0,
   isActive        INTEGER NOT NULL DEFAULT 1,
   lastShownAt     TEXT,
-  timesShown      INTEGER NOT NULL DEFAULT 0
+  timesShown      INTEGER NOT NULL DEFAULT 0,
+  evidence        TEXT,
+  sources         TEXT,
+  variations      TEXT,
+  safety          TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_tasks_theme ON tasks(theme);

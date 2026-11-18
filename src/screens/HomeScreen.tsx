@@ -5,6 +5,7 @@ import { Feather } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import type { DayHistory, HabitChain, JournalEntry, Streak } from '../db/database';
 import { HorizonMark } from '../components/HorizonMark';
+import { RitualEvidence } from '../components/RitualEvidence';
 import type { PickResult } from '../services/dailyPick';
 import { describeNextAlarm, type NextAlarm } from '../services/scheduleHelper';
 import type { AlarmSyncResult } from '../services/alarmSync';
@@ -151,8 +152,9 @@ export function HomeScreen({
         </View>
         <Text style={styles.cardText}>{pick.task.text}</Text>
         <Text style={styles.cardMeta}>
-          {pick.task.verification === 'media' ? '📷 ' + pick.task.mediaType : '✓ check-in'} · ~{pick.task.estSeconds}s
+          Optional · about {pick.task.estSeconds < 60 ? `${pick.task.estSeconds} seconds` : `${Math.round(pick.task.estSeconds / 60)} min`}
         </Text>
+        <RitualEvidence task={pick.task} />
       </View>
 
       {/* Alarm status: always says whether the OS really has an alarm queued. */}
