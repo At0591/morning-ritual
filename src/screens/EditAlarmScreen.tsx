@@ -7,11 +7,13 @@ import { getAlarmById, Alarm, addAlarm, updateAlarm, deleteAlarm } from '../db/d
 
 interface Props {
   alarmId: string | null; // null means create new
+  /** "HH:MM" to start a new alarm at (from the sunrise card). */
+  initialTime?: string | null;
   onBack: () => void;
   onSave: () => void;
 }
 
-export function EditAlarmScreen({ alarmId, onBack, onSave }: Props) {
+export function EditAlarmScreen({ alarmId, initialTime, onBack, onSave }: Props) {
   const [time, setTime] = useState(new Date());
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [days, setDays] = useState<number[]>([]);
@@ -32,12 +34,13 @@ export function EditAlarmScreen({ alarmId, onBack, onSave }: Props) {
       });
     } else {
       // Defaults for new
+      const [hh, mm] = (initialTime ?? '07:00').split(':').map(Number);
       const d = new Date();
-      d.setHours(7, 0, 0, 0);
+      d.setHours(hh, mm, 0, 0);
       setTime(d);
       setDays([1, 2, 3, 4, 5]); // Weekdays default
     }
-  }, [alarmId]);
+  }, [alarmId, initialTime]);
 
   const toggleDay = (day: number) => {
     if (days.includes(day)) {
@@ -85,11 +88,11 @@ export function EditAlarmScreen({ alarmId, onBack, onSave }: Props) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+        <TouchableOpacity onPress={onBack} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel="Close">
           <Feather name="x" size={24} color={colors.ink} />
         </TouchableOpacity>
         <Text style={styles.title}>{alarmId ? 'Edit Alarm' : 'New Alarm'}</Text>
-        <TouchableOpacity onPress={save} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+        <TouchableOpacity onPress={save} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel="Save alarm">
           <Feather name="check" size={24} color={colors.sunrise} />
         </TouchableOpacity>
       </View>
@@ -136,24 +139,7 @@ export function EditAlarmScreen({ alarmId, onBack, onSave }: Props) {
           </View>
         </View>
 
-        {/* Smart Wake */}
-        <View style={styles.section}>
-          <Text style={styles.label}>Smart Wake Window</Text>
-          <Text style={styles.subtext}>Wake up during light sleep before your alarm.</Text>
-          <View style={styles.chipRow}>
-            {[0, 15, 30].map(mins => (
-              <TouchableOpacity
-                key={mins}
-                style={[styles.chip, smartWakeWindow === mins && styles.chipActive]}
-                onPress={() => setSmartWakeWindow(mins)}
-              >
-                <Text style={[styles.chipText, smartWakeWindow === mins && styles.chipTextActive]}>
-                  {mins === 0 ? 'Off' : `${mins}m`}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
+        {/* Smart Wake is out of the launch build (unproven; needed extra permissions). */}
 
         {alarmId && (
           <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>

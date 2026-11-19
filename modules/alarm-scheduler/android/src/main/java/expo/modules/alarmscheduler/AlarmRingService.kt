@@ -101,8 +101,10 @@ class AlarmRingService : Service() {
 
     val notification = buildNotification(taskId, taskText)
     try {
-      val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-        ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+      // systemExempted (Android 14+): for alarm apps holding an exact-alarm
+      // permission. Older versions don't have the type; 0 = manifest default.
+      val type = if (Build.VERSION.SDK_INT >= 34) {
+        ServiceInfo.FOREGROUND_SERVICE_TYPE_SYSTEM_EXEMPTED
       } else {
         0
       }
@@ -263,10 +265,10 @@ class AlarmRingService : Service() {
       PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
     )
 
-    val body = if (taskText.isBlank()) "Time for your morning ritual" else taskText
+    val body = "Tap to open KindRise and turn off the alarm"
     return NotificationCompat.Builder(this, CHANNEL_ID)
       .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-      .setContentTitle("Good morning. Your ritual is waiting")
+      .setContentTitle("Time to get up")
       .setContentText(body)
       .setStyle(NotificationCompat.BigTextStyle().bigText(body))
       .setPriority(NotificationCompat.PRIORITY_MAX)

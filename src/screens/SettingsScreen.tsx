@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import {
   Alert,
   ScrollView,
+  Switch,
   StyleSheet,
   Text,
   TextInput,
@@ -27,6 +28,9 @@ interface Props {
   onUpgrade: () => void;
   onManageAlarms: () => void;
   onBack: () => void;
+  analyticsEnabled: boolean;
+  onChangeAnalytics: (enabled: boolean) => void;
+  onExportJournal: () => void;
 }
 
 const THEMES: Array<{ key: string; label: string; emoji: string; color: string }> = [
@@ -49,6 +53,9 @@ export function SettingsScreen({
   onUpgrade,
   onManageAlarms,
   onBack,
+  analyticsEnabled,
+  onChangeAnalytics,
+  onExportJournal,
 }: Props) {
   const [resetting, setResetting] = useState(false);
   const [bedtimeInput, setBedtimeInput] = useState(bedtime);
@@ -102,16 +109,16 @@ export function SettingsScreen({
       {subscriptionTier === 'free' ? (
         <TouchableOpacity style={styles.upgradeCard} onPress={onUpgrade} activeOpacity={0.85}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.upgradeTitle}>🌅 Unlock Premium</Text>
+            <Text style={styles.upgradeTitle}>Premium is coming</Text>
             <Text style={styles.upgradeSub}>
-              All 1,000 rituals · Bedtime reminders · $3.99/mo
+              Stricter wake-up modes for heavy snoozers, more tunes and insights. The alarm and your journal stay free.
             </Text>
           </View>
           <Text style={styles.upgradeArrow}>→</Text>
         </TouchableOpacity>
       ) : (
         <View style={styles.premiumBadge}>
-          <Text style={styles.premiumBadgeText}>✓ Premium member — thank you!</Text>
+          <Text style={styles.premiumBadgeText}>You have Premium. Thank you.</Text>
         </View>
       )}
 
@@ -159,10 +166,8 @@ export function SettingsScreen({
 
       {/* Manage Alarms */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Alarms & Smart Wake</Text>
-        <Text style={styles.sectionSub}>
-          Configure your daily schedule, enable Smart Wake Windows to wake up during light sleep, and more.
-        </Text>
+        <Text style={styles.sectionTitle}>Alarms</Text>
+        <Text style={styles.sectionSub}>Set your wake-up times and the days they ring.</Text>
         <TouchableOpacity style={styles.resetBtn} onPress={onManageAlarms}>
           <Text style={[styles.resetBtnText, { color: colors.sunrise }]}>⏰ Manage Alarms</Text>
         </TouchableOpacity>
@@ -197,7 +202,7 @@ export function SettingsScreen({
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Bedtime reminder</Text>
         <Text style={styles.sectionSub}>
-          Get a gentle nudge 30 minutes before your target bedtime so you can wind down.
+          A reminder 30 minutes before the time you want to be asleep.
         </Text>
         <View style={styles.bedtimeRow}>
           <Text style={styles.bedtimeLabel}>Sleep by</Text>
@@ -217,28 +222,40 @@ export function SettingsScreen({
           </TouchableOpacity>
         </View>
         {bedtimeEnabled ? (
-          <Text style={styles.bedtimeStatus}>✓ Reminder set for {bedtime} (warns at {bedtime})</Text>
+          <Text style={styles.bedtimeStatus}>On: you'll get a reminder 30 minutes before {bedtime}.</Text>
         ) : null}
       </View>
 
 
 
-      {/* Verification */}
+      {/* Privacy */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Verification</Text>
+        <Text style={styles.sectionTitle}>Privacy</Text>
         <Text style={styles.sectionSub}>
-          v1.0 uses the task's natural verification (media for photo/audio tasks, check-in for the rest).
-          You can't skip the verification — that's the whole point of the ritual.
+          Your journal, streak and rituals stay on this phone. They are not backed up or sent anywhere.
         </Text>
+        <View style={styles.privacyRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.privacyLabel}>Share anonymous usage counts</Text>
+            <Text style={styles.sectionSub}>Never your journal or anything you type.</Text>
+          </View>
+          <Switch
+            value={analyticsEnabled}
+            onValueChange={onChangeAnalytics}
+            accessibilityLabel="Share anonymous usage counts"
+          />
+        </View>
+        <TouchableOpacity style={styles.resetBtn} onPress={onExportJournal} accessibilityRole="button">
+          <Text style={[styles.resetBtnText, { color: colors.sunrise }]}>Export my journal</Text>
+        </TouchableOpacity>
       </View>
 
       {/* About */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>About</Text>
         <Text style={styles.aboutText}>
-          Morning Ritual v1.0.0
-          {'\n'}Built with React Native + Expo.
-          {'\n'}1000 curated tasks across 4 themes.
+          KindRise 1.0.1
+          {'\n'}41 morning rituals, each with its evidence level and source.
         </Text>
       </View>
 
@@ -250,7 +267,7 @@ export function SettingsScreen({
           disabled={resetting}
         >
           <Text style={styles.resetBtnText}>
-            {resetting ? 'Resetting…' : '🗑 Reset all data'}
+            {resetting ? 'Resetting…' : 'Reset all data'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -261,6 +278,8 @@ export function SettingsScreen({
 }
 
 const styles = StyleSheet.create({
+  privacyRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginVertical: spacing.sm },
+  privacyLabel: { ...typography.bodyBold, color: colors.ink },
   container: {
     flex: 1,
     backgroundColor: colors.cream,

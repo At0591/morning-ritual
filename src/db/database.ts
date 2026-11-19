@@ -1,5 +1,5 @@
 // src/db/database.ts
-// SQLite layer for Morning Ritual.
+// SQLite layer for KindRise.
 // Opens DB, runs migrations, seeds the rituals from src/data/rituals.json.
 
 import * as SQLite from 'expo-sqlite';

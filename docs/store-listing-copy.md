@@ -1,149 +1,58 @@
-# App Store + Play Store Listing Copy
+# KindRise: Google Play listing draft
 
-> This file holds the marketing copy for both stores. The numbers and field
-> names below match App Store Connect and Google Play Console exactly so you
-> can paste them in.
+Draft for the first Google Play listing. Check every field against the `store-listing` skill and the current Play Console limits before pasting. The iPhone listing comes later and needs its own headline, because every iPhone alarm app can ring through Silent mode.
 
-## App name (both stores)
+## App name (30 characters max)
 
-**Morning Ritual**
+KindRise: Gentle Alarm Clock
 
-## Subtitle (App Store only — 30 chars max)
+## Short description (80 characters max)
 
-**Start your day with intention.**
+Never oversleep, without the punishment. A soft alarm and a quick wake check.
 
-## Short description (Play Store — 80 chars max)
-
-**An alarm that asks you to do something small before it stops.**
-
-## Long description (4,000 chars max — both stores)
+## Full description
 
 ```
-The alarm that asks: what does a meaningful morning look like?
+KindRise is an alarm for people who snooze, or switch alarms off half asleep, and find punishing alarm apps stressful.
 
-Most alarms stop the moment you tap them. Morning Ritual stops the
-moment you do something. A short movement. A sentence of reflection.
-A photo of your breakfast. A voice note of one thing you're grateful
-for. Something small — but small things, every day, become the day
-itself.
+How a morning works:
+1. A melodic tune starts quiet and gets louder over 30 seconds.
+2. Tap the rising sun a few times to show you're awake. Touching the screen turns the tune down. No maths, no squats, no time limit.
+3. Write one small good thing, or pick a suggestion. It goes into a journal that stays on your phone.
+4. About 10 minutes later, KindRise asks "Still up?". One tap answers it. Miss it, and the tune plays again.
 
-HOW IT WORKS
-1. Pick your alarm time
-2. When it rings, the app reveals today's ritual
-3. Do it (2 to 5 minutes)
-4. Capture proof if you want — a photo, a voice note, or just
-   check in
-5. Your streak grows. Tomorrow's ritual is already waiting.
+Hard mornings happen. A large "I can't do this today" button is always there and works with screen readers.
 
-FOUR THEMES, 1,000 RITUALS
-- BODY: stretches, walks, hydration, breathwork
-- MIND: journaling, meditation, gratitude, single-tasking
-- BRAIN: puzzles, language practice, deep reading, recall drills
-- CREATIVE: sketching, music, writing, cooking experiments
+After you're up, there's an optional morning ritual. KindRise has 41, each with its evidence level (strong, moderate or early) and the study or source behind it.
 
-A NEW RITUAL EVERY DAY
-The app picks one for you each morning, weighted toward the ones
-you've done least. No two consecutive days in a row from the same
-theme. You'll see a 1,000-ritual library before anything repeats.
+Home also shows today's sunrise and Brahma Muhurta times for your area, worked out on your phone. Tap a time to set an alarm for it, or set any time you like.
 
-STREAKS THAT ACTUALLY STICK
-Life happens. We get it. Take a sick day, a travel day, a sleep-in
-day. Two grace days a week are built in — your streak survives a
-miss, but only twice. After that, it resets.
+Built to ring on phones that stop alarms:
+KindRise is tested on phones known to kill background apps. If it finds a setting that could stop your alarm, it tells you on the Home screen and shows how to fix it. No app can promise to ring every time, so for a flight or an exam, set a second alarm too.
 
-NO ACCOUNTS, NO ADS, NO TRACKING
-Your data is yours. It lives on your phone. We don't have servers
-full of your photos. We don't show you ads. We don't sell your
-data. When you delete the app, your data goes with it.
+Free:
+The alarm, the sun tap, your journal, the "Still up?" check and all 41 rituals are free. Premium, coming later, will add stricter wake-up modes and weekly insights. Nothing free will move behind it.
 
-PREMIUM (OPTIONAL)
-The free tier gives you 30 rituals per theme (120 total). Premium
-unlocks all 1,000 plus bedtime reminders and custom alarm sounds.
-$3.99/month or $29.99/year. Your price is held forever — we will
-never raise it on you.
-
-### From the Developer
-Morning Ritual was built by an independent developer who wanted to start his own mornings with intention. If
-that resonates, hit install. If not, we still hope you find your
-own ritual.
-
-Privacy: morningritual.app/privacy
-Terms: morningritual.app/terms
+Private:
+No account. Your journal never leaves your phone. Anonymous usage counts are sent only if you say yes, and you can turn them off in Settings.
 ```
 
-## Promotional text (App Store only — 170 chars max)
+## Screenshots (in this order, one line each)
 
-```
-The alarm that asks you to do something small before it stops.
-30 free rituals, 1,000 with Premium. $3.99/month, held forever.
-No accounts, no ads, no tracking. Your data stays on your phone.
-```
+1. Ringing screen: "A tune that starts quiet"
+2. Sun tap: "Tap the sun to show you're up"
+3. One good thing: "One small good thing to start the day"
+4. "Still up?": "A check 10 minutes later"
+5. A ritual with its evidence label: "41 rituals, each with its source"
+6. Sunrise card: "Today's sunrise and Brahma Muhurta"
+7. Home warning card: "Tells you when a setting could stop your alarm"
 
-## Keywords (App Store only — 100 chars max, comma-separated)
+## Claims we can and can't make
 
-```
-alarm,morning routine,habit,ritual,wellness,streak,journal,
-meditation,gratitude,affirmation
-```
+Can: "built and tested to ring on phones that stop alarms", "may help you feel more awake" (gentle tune, one small study), "a check that you're awake".
+Can't: "rings every time", "clinically proven", "cures grogginess", any health claim for Brahma Muhurta, "gets you up" as a result until the closed test gives numbers.
 
-## Category
+## Contact and links
 
-- **Primary**: Health & Fitness
-- **Secondary**: Lifestyle (App Store) / Productivity (Play Store)
-
-## Age rating
-
-- **App Store**: 4+ (no objectionable content)
-- **Play Store**: Everyone
-
-## Support URL
-
-- **App Store**: https://morningritual.app/support (to be set up)
-- **Play Store**: https://morningritual.app/support
-
-## Marketing URL (App Store only, optional)
-
-- https://morningritual.app
-
-## Privacy policy URL
-
-- **App Store**: https://morningritual.app/privacy (host the markdown at docs/privacy-policy.md)
-- **Play Store**: same
-
-## What's New (v1.0 launch)
-
-```
-Welcome to Morning Ritual 🌅
-
-The alarm that asks: what does a meaningful morning look like?
-
-Every day, a small ritual. Body, mind, brain, or creative.
-30 rituals per theme are free. All 1,000 unlock with Premium.
-
-We don't have accounts, ads, or tracking. Your data is yours.
-
-If this helps you start even one day with more intention, we did
-our job.
-
-* **An Indie Project:** Built for intention. By an independent developer.
-```
-
-## App preview / promo video script (30 seconds, optional)
-
-> [SCREEN: alarm goes off, sunrise icon]
-> VO: "Most alarms stop the moment you tap them."
-> [SCREEN: today's ritual reveals — "Write 3 things you're grateful for"]
-> VO: "Morning Ritual stops when you do something."
-> [SCREEN: user completes, photo of journal]
-> [SCREEN: streak counter ticks up]
-> VO: "A small ritual. Every day. The day becomes itself."
-> [SCREEN: rising sun logo + "Morning Ritual — Start your day with intention"]
-
----
-
-## Press kit one-liner (for journalists)
-
-> Morning Ritual is a wellness alarm app that makes you complete a small
-> value-adding ritual (movement, reflection, learning, or creative prompt)
-> before the alarm stops. Built by an independent developer
-> to fix his own mornings. 1,000 rituals across 4 themes (body, mind, brain, creative).
+Support email: [to be added before launch]
+Privacy policy: host `docs/privacy-policy.md` on the KindRise website before submitting.

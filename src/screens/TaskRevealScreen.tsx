@@ -67,7 +67,7 @@ export function TaskRevealScreen({ task, onStartVerification, onSkip, onSnoozed 
       setSnoozeMessage(
         `Snoozed ${delay} min. ${MAX_SNOOZES - newCount > 0
           ? `${MAX_SNOOZES - newCount} snooze${MAX_SNOOZES - newCount === 1 ? '' : 's'} left.`
-          : 'No more snoozes — this is your last one.'
+          : 'This is your last snooze.'
         }`
       );
       // If they used their last snooze, exit to home so the next alarm fires
@@ -156,7 +156,7 @@ export function TaskRevealScreen({ task, onStartVerification, onSkip, onSnoozed 
         ) : (
           <View style={styles.snoozeExhausted}>
             <Text style={styles.snoozeExhaustedText}>
-              No more snoozes — commit to the ritual.
+              No snoozes left. Time to get up.
             </Text>
           </View>
         )}

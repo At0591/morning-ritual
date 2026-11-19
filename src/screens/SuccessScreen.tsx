@@ -24,7 +24,7 @@ const encouragements = [
   "Beautiful. That's how mornings become something you look forward to.",
   "Done. Tomorrow's task is going to be a different kind of good.",
   "Locked in. One more day, one more ritual.",
-  "That's the move. Most people never start — you just did.",
+  "You started today. That was the hardest part.",
   "Streak updated. You're building something.",
 ];
 

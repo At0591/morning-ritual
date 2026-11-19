@@ -1,0 +1,21 @@
+# Sunrise card: pick a city, check both times show, and the alarm shortcut opens the editor.
+appId: app.kindrise
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "SUNRISE TODAY"
+    timeout: 15000
+- scrollUntilVisible:
+    element: "Pick a city"
+    optional: true
+- tapOn:
+    text: "Pick a city"
+    optional: true
+- tapOn:
+    text: "London"
+    optional: true
+- assertVisible: "Sunrise"
+- assertVisible: "Brahma Muhurta"
+- tapOn: "Set an alarm for this time"
+- assertVisible: "New Alarm"
+- assertVisible: "Save alarm"

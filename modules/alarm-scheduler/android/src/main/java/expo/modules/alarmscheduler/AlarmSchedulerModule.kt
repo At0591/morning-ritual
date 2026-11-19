@@ -64,7 +64,9 @@ class AlarmSchedulerModule : Module() {
       val taskText = params["taskText"] as? String ?: ""
       val triggerAtMillis = (params["triggerAtMillis"] as? Number)?.toLong()
           ?: return@AsyncFunction promise.reject("MISSING_TRIGGER", "triggerAtMillis is required", null)
-      val preWakeWindowMinutes = (params["preWakeWindowMinutes"] as? Number)?.toLong() ?: 0L
+      // Smart Wake (ringing early on movement) is out of the launch build, so
+      // every alarm rings at its set time whatever the caller asks for.
+      val preWakeWindowMinutes = 0L
       val soundUri = params["soundUri"] as? String
 
       val actualTriggerMillis = if (preWakeWindowMinutes > 0) {
@@ -85,7 +87,7 @@ class AlarmSchedulerModule : Module() {
         } catch (_: Exception) { /* settings activity not available */ }
         return@AsyncFunction promise.reject(
           "EXACT_ALARM_NOT_ALLOWED",
-          "Exact alarm permission not granted. Open Settings → Apps → Morning Ritual → Special access → Alarms & reminders, and grant.",
+          "Exact alarm permission not granted. Open Settings → Apps → KindRise → Special access → Alarms & reminders, and grant.",
           null
         )
       }

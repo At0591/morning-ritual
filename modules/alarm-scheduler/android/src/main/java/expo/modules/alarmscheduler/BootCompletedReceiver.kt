@@ -16,7 +16,7 @@ import android.content.Intent
  *
  * The receiver re-arms the most recent alarm from SharedPreferences using
  * the same setExactAndAllowWhileIdle() call. We only restore the latest
- * alarm (Morning Ritual is a single-alarm app in v1.0).
+ * alarm (KindRise is a single-alarm app in v1.0).
  *
  * LOCKED_BOOT_COMPLETED is fired before the user unlocks the device (so
  * the alarm can fire while the phone is still locked). BOOT_COMPLETED

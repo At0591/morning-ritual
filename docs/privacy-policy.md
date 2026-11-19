@@ -1,78 +1,63 @@
-# Morning Ritual — Privacy Policy
+# KindRise privacy policy
 
-_Last updated: 5 June 2026_
+_Last updated: 19 November 2026_
 
-Morning Ritual ("we", "our", "the app") is a wellness alarm application developed by Akshay Bhat ([at0591](https://github.com/At0591)). This privacy policy explains what data we collect, how we use it, and your rights as a user.
+KindRise is an alarm app made by Akshay Tambe, an independent developer in Mumbai, India. This policy explains what the app keeps, what leaves your phone, and what you can do about it.
 
-By using Morning Ritual, you agree to the practices described in this policy.
+## What stays on your phone
 
-## 1. Data we store ON YOUR DEVICE (not on our servers)
+KindRise keeps these things in the app's own storage on your phone. We never receive them:
 
-The app is designed to keep your data private and local. The following is stored only in the app's local storage on your device:
+- your alarms, snooze settings and chosen tune
+- your journal: the "one small good thing" lines you write each morning
+- which rituals you've done, and the mornings you kept
+- your settings, such as your preferred ritual theme and bedtime reminder
+- the place you chose for sunrise times (see below)
 
-- Your daily task history (what ritual you completed, when, and any photo/audio proof you captured)
-- Your current streak, longest streak, and habit-chain progress
-- Your preferences (preferred theme, alarm time, alarm sound, bedtime reminder)
-- Your subscription tier (free / premium)
+If you uninstall KindRise, Android deletes all of this. The app doesn't back it up to Google Drive. To keep your journal, use Settings > Export my journal, which lets you save or send it wherever you choose.
 
-We do **not** have access to this data. It stays on your phone. If you uninstall the app, the data is deleted.
+## Location for sunrise times
 
-## 2. Data we DO NOT collect
+If you ask KindRise to show today's sunrise and Brahma Muhurta, it asks for your approximate location once (accurate to about 3 km) and rounds it to about 1 km. The times are worked out on your phone. Your location is never sent to us or anyone else. You can pick a city from a list instead of sharing your location. The app never asks for precise or background location.
 
-- No accounts. We don't ask for your name, email, or any sign-up.
-- No analytics. We do not use Firebase Analytics, Mixpanel, Amplitude, or any tracking SDK.
-- No crash reporting. We do not use Sentry, Crashlytics, or similar.
-- No advertising. We do not show ads, and we do not share data with ad networks.
-- No social features. There is no way to share data with other users from the app.
+## Usage statistics, only if you say yes
 
-## 3. Data that leaves your device
+The first time you open KindRise, it asks whether you want to share anonymous usage counts, such as how many mornings the alarm was turned off. If you say yes, the app sends these events to PostHog, a product analytics service, on its EU servers. If you say no, nothing is sent.
 
-Only in the following cases:
+What's sent: event names (for example "alarm fired" or "ritual done"), short labels such as a ritual theme, numbers such as snooze minutes, and a random ID that isn't linked to your name, email or phone number. What's never sent: your journal, anything you type, your location, or your contacts. The app removes free text before sending, even if a future change asks it to send some.
 
-### 3.1 Subscriptions (Apple App Store / Google Play)
-If you purchase a Premium subscription, your payment is handled by Apple or Google. They collect the payment information according to their own privacy policies. We only receive:
-- An anonymized subscription ID
-- The product ID you purchased
-- The expiration date of your subscription
+You can change your answer at any time in Settings > Privacy. PostHog's privacy policy: <https://posthog.com/privacy>.
 
-We use [RevenueCat](https://revenuecat.com) as a subscription analytics service. RevenueCat receives the data above so we can verify your subscription status. Their privacy policy: <https://revenuecat.com/privacy>.
+## Subscriptions
 
-### 3.2 Photos and audio you capture
-Photos and audio recordings you create as task proof are saved **only to your device's local storage**. They are never uploaded to a server, shared with us, or transmitted anywhere.
+KindRise Premium isn't available yet. When it launches, payments will go through Google Play, and Google handles your payment details under its own privacy policy. To check whether you have Premium, the app will use RevenueCat, which receives an anonymous app user ID, the product you bought and when it renews or ends. RevenueCat's privacy policy: <https://www.revenuecat.com/privacy>.
 
-### 3.3 Notification permissions
-The app requests permission to send you notifications. This is handled entirely on your device. We do not see or track notification delivery.
+## What KindRise doesn't do
 
-## 4. Children's privacy
+- No account, sign-up, name or email.
+- No ads, and no data shared with ad networks.
+- No camera or microphone access.
+- No selling of data, to anyone.
 
-Morning Ritual is not directed to children under 13. We do not knowingly collect data from children under 13. The app does not require age verification; by using it, you confirm you are 13 or older (or have parental consent).
+## Notifications and alarms
 
-## 5. Your rights
+KindRise asks to send notifications and to show the alarm over your lock screen, so the alarm can wake you. On some phones (for example Vivo, iQOO, Xiaomi and OnePlus) it also asks to display over other apps, for the same reason. These permissions stay on your phone. We don't see when your alarms ring.
 
-You can:
-- **Access your data** by looking in the app (Settings → History).
-- **Delete your data** at any time via Settings → Reset all data, or by uninstalling the app.
-- **Opt out of subscriptions** via your Apple / Google account settings. Cancellation takes effect at the end of the current billing period.
-- **Disable notifications** via your device's Settings → Apps → Morning Ritual → Notifications.
+## Children
 
-Since we don't collect server-side data, there is no data to export or delete from our side.
+KindRise isn't made for children under 13, and we don't knowingly collect data from them.
 
-## 6. Changes to this policy
+## Your rights
 
-If we make material changes, we will update the "Last updated" date at the top of this page. For significant changes, we may also show a notice in the app.
+You can see everything KindRise keeps by opening the app. You can delete it with Settings > Reset all data, or by uninstalling the app. You can turn usage statistics off in Settings > Privacy. If you shared usage statistics and want them deleted, contact us with the date you installed the app, and we'll delete the events from PostHog. If you're in the EU or UK, the GDPR or UK GDPR gives you these rights as well; if you're in a US state with its own privacy law, those rights apply too.
 
-## 7. Contact
+## Changes
 
-For privacy questions, contact:
-- Email: <akshay@morningritual.app> (or your business email)
-- GitHub: <https://github.com/At0591/morning-ritual/issues>
+If this policy changes, we'll update the date at the top. For a change that affects what leaves your phone, the app will show a notice first.
 
-We aim to respond within 7 days.
+## Contact
 
-## 8. Jurisdiction
+Email: [support email to be added before launch]
+GitHub: <https://github.com/At0591/morning-ritual/issues>
 
-This policy is governed by the laws of India (where the developer is based). If you are in the EU/UK, your local data protection rights (GDPR, UK GDPR) apply in addition.
-
----
-
-_Plain-English summary: Your data stays on your phone. We don't collect analytics, ads, or anything that identifies you. Subscriptions go through Apple/Google, with RevenueCat as a thin layer. That's it._
+We reply within 7 days.

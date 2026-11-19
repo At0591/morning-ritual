@@ -17,7 +17,10 @@ import {
 import Animated, { FadeInRight } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { colors, radius, spacing, typography } from '../theme';
+import { Feather } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { HorizonMark } from '../components/HorizonMark';
+import { brand, colors, radius, spacing, typography } from '../theme';
 import { addAlarm, getAllAlarms, setSetting, updateAlarm } from '../db/database';
 import { trackEvent, trackOnboardingStart, trackOnboardingComplete } from '../services/analytics';
 
@@ -36,6 +39,8 @@ type Step = 0 | 1 | 2;
 
 export function OnboardingFlow({ onComplete }: Props) {
   const [step, setStep] = useState<Step>(0);
+  // Keep the buttons clear of the status bar and the phone's navigation bar.
+  const insets = useSafeAreaInsets();
   
   // Track onboarding started on mount
   useEffect(() => {
@@ -86,7 +91,12 @@ export function OnboardingFlow({ onComplete }: Props) {
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: insets.top + spacing.xl, paddingBottom: insets.bottom + spacing.xl },
+        ]}
+      >
         {/* Progress dots */}
         <View style={styles.dotsRow}>
           {[0, 1, 2].map((i) => (
@@ -103,30 +113,25 @@ export function OnboardingFlow({ onComplete }: Props) {
         {/* STEP 0: Welcome */}
         {step === 0 && (
           <Animated.View entering={FadeInRight.duration(400)} style={styles.stepContainer}>
-            <Text style={styles.heroEmoji}>🌅</Text>
-            <Text style={styles.title}>Start your day{'\n'}with intention.</Text>
+            <View style={styles.heroMark}>
+              <HorizonMark size={72} sunColor="#E89A2E" lineColor={brand.ink} />
+            </View>
+            <Text style={styles.title}>Never oversleep,{'\n'}without the punishment.</Text>
             <Text style={styles.subtitle}>
-              The alarm that asks: what does a meaningful morning look like?
+              A soft tune wakes you, a quick check makes sure you're up, and one small good thing starts your day.
             </Text>
             <View style={styles.bullets}>
-              <View style={styles.bulletRow}>
-                <Text style={styles.bulletEmoji}>🎯</Text>
-                <Text style={styles.bulletText}>
-                  One small ritual each morning — body, mind, brain, or creative.
-                </Text>
-              </View>
-              <View style={styles.bulletRow}>
-                <Text style={styles.bulletEmoji}>📸</Text>
-                <Text style={styles.bulletText}>
-                  Capture it. 30 seconds of proof. Build a streak.
-                </Text>
-              </View>
-              <View style={styles.bulletRow}>
-                <Text style={styles.bulletEmoji}>🔒</Text>
-                <Text style={styles.bulletText}>
-                  Your data stays on your phone. No accounts, no ads, no tracking.
-                </Text>
-              </View>
+              {[
+                { icon: 'music' as const, text: 'A gentle tune that starts quiet and slowly gets louder.' },
+                { icon: 'sun' as const, text: "Tap the rising sun to show you're awake. No maths, no squats." },
+                { icon: 'edit-3' as const, text: "Write one small good thing, or pick a suggestion. Ten minutes later we check you're still up." },
+                { icon: 'lock' as const, text: 'Your journal stays on your phone. No account. Usage stats only if you say yes.' },
+              ].map((b) => (
+                <View key={b.icon} style={styles.bulletRow}>
+                  <Feather name={b.icon} size={22} color={colors.warning} style={styles.bulletIcon} />
+                  <Text style={styles.bulletText}>{b.text}</Text>
+                </View>
+              ))}
             </View>
             <View style={styles.buttonRow}>
               <TouchableOpacity
@@ -143,10 +148,9 @@ export function OnboardingFlow({ onComplete }: Props) {
         {/* STEP 1: Pick theme */}
         {step === 1 && (
           <Animated.View entering={FadeInRight.duration(400)} style={styles.stepContainer}>
-            <Text style={styles.heroEmoji}>🎯</Text>
             <Text style={styles.title}>Pick a focus</Text>
             <Text style={styles.subtitle}>
-              Your daily ritual will lean toward this. Switch anytime in Settings.
+              After you're up, there's an optional ritual: 41 to choose from, each with its evidence and source. Yours will lean toward this. Change it anytime in Settings.
             </Text>
             <View style={styles.themeGrid}>
               <TouchableOpacity
@@ -203,10 +207,9 @@ export function OnboardingFlow({ onComplete }: Props) {
         {/* STEP 2: Set alarm time */}
         {step === 2 && (
           <Animated.View entering={FadeInRight.duration(400)} style={styles.stepContainer}>
-            <Text style={styles.heroEmoji}>⏰</Text>
             <Text style={styles.title}>Set your wake time</Text>
             <Text style={styles.subtitle}>
-              Your alarm will ring at this time, then reveal today's ritual.
+              Your alarm rings at this time every day. You can change it or add more alarms later.
             </Text>
 
             <TouchableOpacity
@@ -258,7 +261,7 @@ export function OnboardingFlow({ onComplete }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.cream },
-  scrollContent: { padding: spacing.lg, paddingTop: spacing.xxl },
+  scrollContent: { padding: spacing.lg },
   dotsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -273,7 +276,7 @@ const styles = StyleSheet.create({
   dotActive: { backgroundColor: colors.sunrise },
   dotInactive: { backgroundColor: colors.divider },
   stepContainer: { alignItems: 'center' },
-  heroEmoji: { fontSize: 72, marginBottom: spacing.md },
+  heroMark: { marginBottom: spacing.md, alignItems: 'center' },
   title: {
     ...typography.title,
     color: colors.ink,
@@ -294,7 +297,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: spacing.md,
   },
-  bulletEmoji: { fontSize: 22, marginRight: spacing.md, marginTop: 2 },
+  bulletIcon: { marginRight: spacing.md, marginTop: 2 },
   bulletText: { ...typography.body, color: colors.ink, flex: 1, lineHeight: 22 },
   themeGrid: { alignSelf: 'stretch', marginBottom: spacing.lg },
   themeCard: {

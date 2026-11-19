@@ -85,7 +85,7 @@ export function AlarmsListScreen({ onBack, onEditAlarm, onCreateAlarm, onChanged
                     {alarm.time}
                   </Text>
                   <Text style={[styles.alarmDays, !alarm.enabled && styles.textDisabled]}>
-                    {formatDays(alarm.days)} {alarm.smartWakeWindow > 0 && ` • Smart Wake (${alarm.smartWakeWindow}m)`}
+                    {formatDays(alarm.days)}
                   </Text>
                 </View>
                 <Switch

@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "mobile": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "@mobilenext/mobile-mcp@1.0.18"],
+      "env": {
+        "MOBILEMCP_DISABLE_TELEMETRY": "1",
+        "ANDROID_HOME": "C:\\Users\\aksha\\AppData\\Local\\Android\\Sdk"
+      }
+    },
+    "context7": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "@upstash/context7-mcp@4.7.3"]
+    }
+  }
+}

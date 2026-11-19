@@ -214,7 +214,7 @@ export function VoiceRecorder({ onRecorded }: Props) {
   return (
     <View style={styles.container}>
       <Text style={styles.prompt}>Tap to record your voice memo</Text>
-      <Text style={styles.hint}>Speak naturally — 5 to 60 seconds</Text>
+      <Text style={styles.hint}>Speak naturally for 5 to 60 seconds</Text>
       {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
       <TouchableOpacity style={styles.startBtn} onPress={startRecording} activeOpacity={0.85}>
         <View style={styles.recordIconOuter}>

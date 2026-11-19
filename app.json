@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Morning Ritual",
+    "name": "KindRise",
     "slug": "morning-ritual",
     "version": "1.0.1",
     "orientation": "portrait",
@@ -14,38 +14,40 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.morningritual.client",
+      "bundleIdentifier": "app.kindrise",
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "Morning Ritual records your voice so you can prove you completed the day's task.",
-        "NSCameraUsageDescription": "Morning Ritual uses the camera so you can capture proof of the day's task.",
-        "NSMotionUsageDescription": "Morning Ritual monitors movement to wake you up gently during your lightest sleep phase.",
         "UIBackgroundModes": [
           "audio"
         ]
       }
     },
     "android": {
-      "package": "app.morningritual.client",
+      "package": "app.kindrise",
       "adaptiveIcon": {
-        "backgroundColor": "#FF6B35",
+        "backgroundColor": "#0E1230",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "permissions": [
-        "RECORD_AUDIO",
-        "CAMERA",
         "POST_NOTIFICATIONS",
-        "SCHEDULE_EXACT_ALARM",
-        "USE_EXACT_ALARM",
         "USE_FULL_SCREEN_INTENT",
         "VIBRATE",
         "WAKE_LOCK",
-        "REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
         "RECEIVE_BOOT_COMPLETED",
-        "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS",
-        "android.permission.ACTIVITY_RECOGNITION"
+        "android.permission.ACCESS_COARSE_LOCATION"
       ],
+      "blockedPermissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACTIVITY_RECOGNITION",
+        "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.FOREGROUND_SERVICE_HEALTH",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION"
+      ],
+      "allowBackup": false,
       "predictiveBackGestureEnabled": false
     },
     "web": {
@@ -56,7 +58,9 @@
       [
         "expo-audio",
         {
-          "microphonePermission": "Morning Ritual records your voice so you can prove you completed the day's task."
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "enableBackgroundPlayback": false
         }
       ],
       "expo-font",
@@ -64,9 +68,18 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/splash.png",
+          "image": "./assets/splash-icon.png",
           "resizeMode": "contain",
-          "backgroundColor": "#FAF7F2"
+          "backgroundColor": "#0E1230",
+          "imageWidth": 240
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "KindRise uses your approximate location, on your phone only, to show today's sunrise time.",
+          "isAndroidBackgroundLocationEnabled": false,
+          "isAndroidForegroundServiceEnabled": false
         }
       ]
     ],

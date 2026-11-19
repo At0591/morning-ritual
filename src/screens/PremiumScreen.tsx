@@ -1,5 +1,5 @@
 // src/screens/PremiumScreen.tsx
-// "Go Premium" screen — explains benefits, shows prices, handles purchase flow.
+// Premium screen: what Premium adds, prices, and the purchase flow.
 // Shown when user taps "Upgrade to Premium" in Settings, or when they try to
 // access a premium feature.
 
@@ -29,31 +29,27 @@ import {
 import { trackPremiumPromptShown, trackPremiumSubscribed } from '../services/analytics';
 import { colors, radius, spacing, typography, shadows } from '../theme';
 
-const PREMIUM_BENEFITS = [
+// What Premium adds. The alarm, the morning flow and your journal stay free.
+const PREMIUM_BENEFITS: Array<{ icon: keyof typeof Feather.glyphMap; title: string; body: string }> = [
   {
-    emoji: '🎯',
-    title: 'All 1,000 morning rituals',
-    body: 'Get the full library across all 4 themes: body, mind, brain, creative. The free tier offers 30 per theme.',
+    icon: 'shield',
+    title: 'Stricter ways to get up',
+    body: 'Every strict mode: open the curtains, scan a sticker in another room, or walk a few steps. One is free.',
   },
   {
-    emoji: '📸',
-    title: 'Unlimited photo proof',
-    body: 'Capture proof of every ritual — no daily limits.',
+    icon: 'bell',
+    title: 'A firmer "Still up?"',
+    body: 'Choose when the check comes and how hard it is to dismiss, for mornings you know you will snooze.',
   },
   {
-    emoji: '🌙',
-    title: 'Bedtime reminders',
-    body: 'A 30-minute wind-down notification so you actually go to sleep, not just wake up.',
+    icon: 'bar-chart-2',
+    title: 'Wake-up insights',
+    body: 'A weekly recap of how many mornings you were up on time.',
   },
   {
-    emoji: '📊',
-    title: 'Streak insights',
-    body: 'Habit chains, longest streaks, and weekly summaries to keep you motivated.',
-  },
-  {
-    emoji: '💎',
-    title: 'Support an indie maker',
-    body: "You're funding an independent developer building tools for intentional living.",
+    icon: 'music',
+    title: 'More gentle tunes',
+    body: 'More licensed melodic tunes, and you choose how long the tune takes to rise.',
   },
 ];
 
@@ -93,12 +89,12 @@ export function PremiumScreen({ onClose, onPurchased }: Props) {
         setTier('premium');
         trackPremiumSubscribed({ tier: period });
         Alert.alert(
-          'Welcome to Premium! 🌅',
-          'You now have access to all 1,000 morning rituals.',
+          'Premium is on',
+          'Thanks for supporting KindRise. The strict modes and insights are now open.',
           [{ text: 'OK', onPress: () => onPurchased?.() }]
         );
       } else if (result.error === 'cancelled') {
-        // User cancelled — no alert
+        // The user cancelled, so no alert.
       } else {
         Alert.alert('Purchase failed', result.error ?? 'Please try again.');
       }
@@ -113,7 +109,7 @@ export function PremiumScreen({ onClose, onPurchased }: Props) {
     setLoading(false);
     if (result.restored) {
       setTier(result.status.tier);
-      Alert.alert('Restored!', 'Your premium subscription is back.');
+      Alert.alert('Premium restored', 'Your subscription is active again.');
     } else {
       Alert.alert('Nothing to restore', "We couldn't find an active subscription on this account.");
     }
@@ -139,12 +135,11 @@ export function PremiumScreen({ onClose, onPurchased }: Props) {
         </TouchableOpacity>
 
       <View style={styles.hero}>
-        <Text style={styles.heroEmoji}>🌅</Text>
-        <Text style={styles.heroTitle}>Start your day{'\n'}with intention.</Text>
+        <Text style={styles.heroTitle}>KindRise Premium</Text>
         <Text style={styles.heroSubtitle}>
           {tier === 'premium'
-            ? 'You have Premium — thank you for the support!'
-            : 'Unlock the full ritual library.'}
+            ? 'You have Premium. Thank you for supporting KindRise.'
+            : 'Extra help for the mornings that are hardest to get up. The alarm and your journal stay free.'}
         </Text>
       </View>
 
@@ -153,7 +148,7 @@ export function PremiumScreen({ onClose, onPurchased }: Props) {
           <View style={styles.benefits}>
             {PREMIUM_BENEFITS.map((b) => (
               <View key={b.title} style={styles.benefitRow}>
-                <Text style={styles.benefitEmoji}>{b.emoji}</Text>
+                <Feather name={b.icon} size={22} color={colors.warning} style={styles.benefitIcon} />
                 <View style={styles.benefitText}>
                   <Text style={styles.benefitTitle}>{b.title}</Text>
                   <Text style={styles.benefitBody}>{b.body}</Text>
@@ -164,15 +159,12 @@ export function PremiumScreen({ onClose, onPurchased }: Props) {
 
           {!iapAvailable ? (
             <View style={styles.priceCard}>
-              <Text style={styles.comingSoonBadge}>COMING IN v1.0.1</Text>
-              <Text style={styles.priceCardTitle}>Premium is on the way</Text>
+              <Text style={styles.comingSoonBadge}>COMING LATER</Text>
+              <Text style={styles.priceCardTitle}>Premium isn't available yet</Text>
               <Text style={styles.comingSoonBody}>
-                We're finishing the subscription system. The free tier gives you 30
-                rituals per theme — plenty to start your morning with intention.
-                {'\n\n'}
-                Premium ($3.99/mo or $29.99/yr, price held forever) will unlock all
-                1,000 rituals plus bedtime reminders.
-                Watch for the update.
+                Everything you need to wake up is free today: the gentle alarm, the sun tap, your journal,
+                the "Still up?" check and all 41 rituals. Premium will come in a later update, and nothing
+                you use now will move behind it.
               </Text>
             </View>
           ) : (
@@ -191,7 +183,7 @@ export function PremiumScreen({ onClose, onPurchased }: Props) {
                       Yearly
                     </Text>
                     <Text style={[styles.priceOptionSubtitle, styles.priceOptionSubtitleOnPrimary]}>
-                      Save 37% · ${(29.99 / 12).toFixed(2)}/mo
+                      ${(29.99 / 12).toFixed(2)} a month, billed yearly
                     </Text>
                   </View>
                   <View style={styles.priceOptionRight}>
@@ -219,7 +211,7 @@ export function PremiumScreen({ onClose, onPurchased }: Props) {
                   </View>
                   <View style={styles.priceOptionRight}>
                     <Text style={styles.priceOptionPrice}>
-                      {offerings.monthly?.priceString ?? '$3.99'}
+                      {offerings.monthly?.priceString ?? '$4.99'}
                     </Text>
                     <Text style={styles.priceOptionPer}>/ month</Text>
                   </View>
@@ -229,8 +221,8 @@ export function PremiumScreen({ onClose, onPurchased }: Props) {
                 </TouchableOpacity>
 
                 <Text style={styles.legalNote}>
-                  Subscriptions auto-renew unless cancelled at least 24h before the end
-                  of the current period. Manage in your App Store / Play Store settings.
+                  Your subscription renews automatically until you cancel. Cancel at least 24 hours before
+                  the renewal date in Google Play, under Payments and subscriptions.
                 </Text>
               </View>
 
@@ -245,7 +237,7 @@ export function PremiumScreen({ onClose, onPurchased }: Props) {
           <Text style={styles.alreadyEmoji}>✓</Text>
           <Text style={styles.alreadyText}>You're a Premium member.</Text>
           <Text style={styles.alreadySubtext}>
-            Thanks for supporting Morning Ritual. All 1,000 rituals are unlocked.
+            Thanks for supporting KindRise. The strict modes, insights and extra tunes are open.
           </Text>
         </View>
       )}
@@ -261,12 +253,11 @@ const styles = StyleSheet.create({
   closeButton: { alignSelf: 'flex-start', padding: spacing.sm, marginBottom: spacing.md },
   closeText: { ...typography.body, color: colors.sand },
   hero: { alignItems: 'center', marginBottom: spacing.xl },
-  heroEmoji: { fontSize: 64, marginBottom: spacing.sm },
   heroTitle: { ...typography.title, color: colors.ink, textAlign: 'center', marginBottom: spacing.sm, fontWeight: '700' },
   heroSubtitle: { ...typography.body, color: colors.sand, textAlign: 'center' },
   benefits: { marginBottom: spacing.lg },
   benefitRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: spacing.md },
-  benefitEmoji: { fontSize: 24, marginRight: spacing.md, marginTop: 2 },
+  benefitIcon: { marginRight: spacing.md, marginTop: 2 },
   benefitText: { flex: 1 },
   benefitTitle: { ...typography.body, fontWeight: '600', color: colors.ink, marginBottom: 2 },
   benefitBody: { ...typography.caption, color: colors.sand, lineHeight: 18 },

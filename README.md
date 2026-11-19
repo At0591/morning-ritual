@@ -1,59 +1,47 @@
-# Morning Ritual 🌅
+# KindRise
 
 [![checks](https://github.com/At0591/morning-ritual/actions/workflows/checks.yml/badge.svg)](https://github.com/At0591/morning-ritual/actions/workflows/checks.yml)
 
-> Start your day with intention.
+KindRise is a gentle alarm app for Android, for people who snooze through alarms or switch them off half asleep. It was called Morning Ritual until November 2026; the repository keeps the old name.
 
-Morning Ritual is an iOS and Android alarm app designed to help you build positive morning habits. Instead of just swiping to dismiss or solving math problems, Morning Ritual requires you to complete a small, value-adding task before the alarm stops. 
+A morning with KindRise goes like this:
 
-The tone is aspirational and intentional, never punitive. It's about waking up to a pleasant prompt that gets your day started right.
+1. A melodic tune starts quiet and gets louder over 30 seconds.
+2. You tap a rising sun five or six times to show you're awake. Touching the screen turns the tune down. There's no maths and no time limit, and a large "I can't do this today" button always works, including with a screen reader.
+3. You write one small good thing in a journal, or pick one of three suggestions.
+4. About 10 minutes later the app asks "Still up?". One tap answers it; if you miss it, the tune plays again.
 
-## Features
+After that there's an optional ritual. The app has 41 of them, and each shows its evidence level (strong, moderate or early) and the study or source behind it. Home also shows today's sunrise and Brahma Muhurta times, worked out on the phone from an approximate location or a city you pick.
 
-- **1000 Intentional Tasks:** Curated tasks across 4 core themes (Body, Mind, Brain, Creative).
-- **Smart Verification:** A hybrid verification system requiring a quick photo or check-in to confirm you're awake and active.
-- **Native Smart Alarm Integration:** Leverages native Android `AlarmManager` for precise scheduling that bypasses Doze and battery optimizations.
-- **Habit Chains & Streaks:** Tracks your 7-day streaks with visual progress dots on your home screen.
-- **Privacy First:** 100% local processing. No cloud syncing, no accounts required in v1.0. Everything lives securely in a local SQLite database.
-- **Curated Sounds:** Wake up to pleasant, nature-inspired sounds instead of jarring sirens.
+The journal and settings stay on the phone. There's no account, and anonymous usage counts are sent only if the user agrees.
 
-## Tech Stack
+## Status (November 2026)
 
-- **Framework:** React Native + Expo (TypeScript)
-- **Database:** Local SQLite (`expo-sqlite`)
-- **Native Integrations:** 
-  - `expo-notifications` 
-  - `expo-camera` 
-  - `expo-av` 
-  - Custom Native Android Module for Alarm Management
+- Android only. Tested on an iQOO Neo 10R (Android 16), with the app open, in the background and closed, and over the lock screen.
+- Not on Google Play yet. A closed test comes first.
+- Premium, payments and an iPhone version aren't built yet.
 
-## Running Locally
+## How it's built
 
-Because this project uses custom native code for precise alarm scheduling, you cannot use the standard Expo Go app. You must build the project locally or via EAS.
+- Expo SDK 58, React Native and TypeScript, with expo-sqlite for local storage.
+- A native Kotlin module (`modules/alarm-scheduler`) schedules alarms with `AlarmManager.setAlarmClock`, rings through a foreground service, and opens the wake screen over the lock screen. On Vivo, iQOO, Xiaomi, Oppo, Realme and OnePlus it also uses "Display over other apps", because those phones can block full-screen alarms.
+- Sunrise and Brahma Muhurta come from SunCalc. Brahma Muhurta uses Drik Panchang's method (one fifteenth of the night, ending one such part before sunrise), and tests check it against Drik Panchang's published times for London and Mumbai.
+- Jest tests (69) and a GitHub Actions check run on every push.
 
-### Prerequisites
-- Node.js (v24)
-- Android Studio / Android SDK (for local Android builds)
+## Running it locally
 
-### Setup
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/At0591/morning-ritual.git
-   cd morning-ritual
-   ```
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Prebuild the native Android project:
-   ```bash
-   npx expo prebuild --platform android
-   ```
-4. Build and run on a connected Android device or emulator:
-   ```bash
-   npx expo run:android
-   ```
+The app uses native code, so Expo Go won't run it. You need Node.js 24 and the Android SDK.
 
-## Design Philosophy
+```bash
+git clone https://github.com/At0591/morning-ritual.git
+cd morning-ritual
+npm install
+npx expo prebuild --platform android
+npx expo run:android
+```
 
-The core philosophy of Morning Ritual is that your alarm should not hate you. Morning Ritual acts as a gentle, intentional guide to get you out of bed and into a productive, positive mindset without the harshness of a blaring horn or the annoyance of a barcode scanner puzzle.
+On Windows, `scripts/build-local-apk.ps1 -Install` builds a signed release APK and installs it on a connected phone. `scripts/alarm-check.ps1` checks each connected phone for the settings that can stop an alarm, and `.maestro/` holds screen tests for [Maestro](https://maestro.mobile.dev).
+
+## Licence
+
+Copyright 2026 Akshay Tambe. All rights reserved. The code is public to read; see `LICENSE`.

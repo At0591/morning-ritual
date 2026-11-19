@@ -43,38 +43,26 @@ class AlarmFireReceiver : BroadcastReceiver() {
     val taskText = intent.getStringExtra(AlarmSchedulerModule.EXTRA_TASK_TEXT) ?: ""
     val fireAt = System.currentTimeMillis()
 
-    val isPreWake = intent.getBooleanExtra(AlarmSchedulerModule.EXTRA_IS_PRE_WAKE, false)
-    val realTriggerMillis = intent.getLongExtra(AlarmSchedulerModule.EXTRA_REAL_TRIGGER_MILLIS, 0L)
     // Tone chosen in the app (a file:// copy of the bundled sound); the extra is
     // missing for alarms re-armed after a reboot, so fall back to the saved one.
     val soundUri = intent.getStringExtra(AlarmSchedulerModule.EXTRA_SOUND_URI)
       ?: AlarmSchedulerModule.savedSoundUri(context)
 
-    if (isPreWake) {
-      val serviceIntent = Intent(context, SmartWakeService::class.java).apply {
-        putExtra(AlarmSchedulerModule.EXTRA_TASK_ID, taskId)
-        putExtra(AlarmSchedulerModule.EXTRA_TASK_TEXT, taskText)
-        putExtra(AlarmSchedulerModule.EXTRA_REAL_TRIGGER_MILLIS, realTriggerMillis)
-        putExtra(AlarmSchedulerModule.EXTRA_SOUND_URI, soundUri)
-      }
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        context.startForegroundService(serviceIntent)
-      } else {
-        context.startService(serviceIntent)
-      }
-    } else {
-      // 1) Persist for cold-start pickup
-      AlarmSchedulerModule.recordLastFired(context, taskId, taskText, fireAt)
+    // (Smart Wake, which started a motion-sensing service before the alarm, is
+    // out of the launch build: it needed a "health" foreground service and a
+    // motion permission for an unproven feature.)
 
-      // 2) Ring: a foreground service loops the tone on the alarm stream,
-      //    vibrates and shows the full-screen alarm notification. If Android
-      //    refuses to start it, fall back to the one-shot alarm notification.
-      try {
-        AlarmRingService.start(context, taskId, taskText, soundUri)
-      } catch (e: Exception) {
-        Log.e("AlarmFireReceiver", "could not start AlarmRingService: ${e.message}")
-        postAlarmNotification(context, taskId, taskText)
-      }
+    // 1) Persist for cold-start pickup
+    AlarmSchedulerModule.recordLastFired(context, taskId, taskText, fireAt)
+
+    // 2) Ring: a foreground service loops the tone on the alarm stream,
+    //    vibrates and shows the full-screen alarm notification. If Android
+    //    refuses to start it, fall back to the one-shot alarm notification.
+    try {
+      AlarmRingService.start(context, taskId, taskText, soundUri)
+    } catch (e: Exception) {
+      Log.e("AlarmFireReceiver", "could not start AlarmRingService: ${e.message}")
+      postAlarmNotification(context, taskId, taskText)
     }
   }
 
@@ -83,7 +71,7 @@ class AlarmFireReceiver : BroadcastReceiver() {
     val channelId = CHANNEL_ID
 
     // Create or update the channel. We use a separate channel from
-    // expo-notifications' so the system settings show "Morning Ritual
+    // expo-notifications' so the system settings show "KindRise
     // Alarm" cleanly and we can ensure it always has the right sound.
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
       val channel = NotificationChannel(
@@ -91,7 +79,7 @@ class AlarmFireReceiver : BroadcastReceiver() {
         CHANNEL_NAME,
         NotificationManager.IMPORTANCE_MAX
       ).apply {
-        description = "High-priority alarm notifications for the Morning Ritual app"
+        description = "Your KindRise alarms"
         // Use the system alarm sound + alarm audio attributes so this is
         // treated as a real alarm (not a notification) — bypasses DND
         // and respects the user's alarm volume rather than ringtone volume
@@ -129,7 +117,7 @@ class AlarmFireReceiver : BroadcastReceiver() {
     // = shows on top of the lock screen and triggers the alarm sound.
     val notif = NotificationCompat.Builder(context, channelId)
       .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-      .setContentTitle("🌅 Morning Ritual")
+      .setContentTitle("KindRise")
       .setContentText(taskText)
       .setStyle(NotificationCompat.BigTextStyle().bigText(taskText))
       .setPriority(NotificationCompat.PRIORITY_MAX)
@@ -147,6 +135,6 @@ class AlarmFireReceiver : BroadcastReceiver() {
 
   companion object {
     const val CHANNEL_ID = "morning-ritual-alarm-native"
-    const val CHANNEL_NAME = "Morning Ritual Alarm"
+    const val CHANNEL_NAME = "KindRise Alarm"
   }
 }

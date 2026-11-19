@@ -42,6 +42,8 @@ import { AlarmScheduler } from '../../modules/alarm-scheduler/src';
 import { getSoundById, DEFAULT_SOUND_ID, SOUND_OPTIONS } from './sounds';
 import { getSetting, setSetting } from '../db/database';
 import { pendingCheckIn } from './scheduleHelper';
+import * as Device from 'expo-device';
+import { needsOverlayFallback } from '../utils/device';
 import { trackAlarmFired } from './analytics';
 import { errorMessage } from '../utils/errors';
 
@@ -52,7 +54,7 @@ export const ALARM_SOUND_SETTING_KEY = 'alarm_sound';
 export const PRE_WAKE_WINDOW_SETTING_KEY = 'pre_wake_window_minutes';
 
 const ALARM_CHANNEL_ID = 'morning-ritual-alarm-v2';
-const ALARM_CHANNEL_NAME = 'Morning Ritual Alarm';
+const ALARM_CHANNEL_NAME = 'KindRise Alarm';
 const ALARM_CATEGORY_ID = 'morning-ritual-alarm';
 
 let initialized = false;
@@ -202,6 +204,9 @@ export async function openFullScreenAlarmSettings(): Promise<void> {
  */
 export async function canOpenWakeScreenOverLockScreen(): Promise<boolean> {
   if (Platform.OS !== 'android') return true;
+  // Only phone brands that reject full-screen alarms need this permission;
+  // on others report "fine" so we never ask for it.
+  if (!needsOverlayFallback(Device.manufacturer)) return true;
   try {
     return await AlarmScheduler.canDrawOverlays();
   } catch {
@@ -530,7 +535,7 @@ export async function scheduleAlarm(
     const delaySec = Math.max(1, Math.round(delayMs / 1000));
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: '🌅 Morning Ritual — wake up',
+        title: 'KindRise: time to get up',
         body: taskText.length > 100 ? taskText.slice(0, 97) + '...' : taskText,
         data: { taskId, taskText, type: 'alarm', alarmInternalId: id },
         sound: 'default',
@@ -637,7 +642,7 @@ async function displayAlarmNotification(alarm: ScheduledAlarm): Promise<void> {
   await playAlarmSound();
   await Notifications.scheduleNotificationAsync({
     content: {
-      title: '🌅 Morning Ritual',
+      title: 'KindRise',
       body: alarm.taskText.length > 100
         ? alarm.taskText.slice(0, 97) + '...'
         : alarm.taskText,
@@ -718,7 +723,7 @@ export async function restoreAlarmsOnAppStart(): Promise<{
     try {
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: '🌅 Morning Ritual — wake up',
+          title: 'KindRise: time to get up',
           body: alarm.taskText.length > 100 ? alarm.taskText.slice(0, 97) + '...' : alarm.taskText,
           data: { taskId: alarm.taskId, taskText: alarm.taskText, type: 'alarm' },
           sound: 'default',

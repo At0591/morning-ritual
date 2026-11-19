@@ -1,0 +1,13 @@
+# Smoke test: the app opens, Home shows, Settings opens and closes.
+# Run with the phone connected:  maestro test .maestro/smoke.yaml
+appId: app.kindrise
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "KindRise"
+    timeout: 15000
+- assertVisible: "SUNRISE TODAY"
+- tapOn: "Settings"
+- assertVisible: "Export my journal"
+- back
+- assertVisible: "KindRise"

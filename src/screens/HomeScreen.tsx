@@ -12,6 +12,7 @@ import type { AlarmSyncResult } from '../services/alarmSync';
 import { showOemSetupGuide } from '../services/systemSettings';
 import { StreakHistoryDots } from '../components/StreakHistoryDots';
 import { OnboardingCard } from '../components/OnboardingCard';
+import { DawnTimesCard } from '../components/DawnTimesCard';
 import { DebugPanel } from '../components/DebugPanel';
 import { getTodayAffirmation } from '../data/affirmations';
 import { navigate } from '../navigation/navigation';
@@ -23,6 +24,8 @@ type Props = {
   chains: HabitChain[];
   history: DayHistory[];
   journal: JournalEntry[];
+  analyticsConsent: 'granted' | 'denied' | null;
+  onAnalyticsConsent: (granted: boolean) => void;
   alarmStatus: AlarmSyncResult['status'] | null;
   nextAlarm: NextAlarm | null;
   lockScreenAccessMissing: boolean;
@@ -32,6 +35,7 @@ type Props = {
   onRetryAlarm: () => void;
   onFixLockScreenAccess: () => void;
   onRevealNow: () => void;
+  onSetAlarmAt: (time: string) => void;
 };
 
 const CHAIN_EMOJI: Record<string, string> = { body: '🧘', mind: '🧠', brain: '💡' };
@@ -42,6 +46,8 @@ export function HomeScreen({
   chains,
   history,
   journal,
+  analyticsConsent,
+  onAnalyticsConsent,
   alarmStatus,
   nextAlarm,
   lockScreenAccessMissing,
@@ -51,6 +57,7 @@ export function HomeScreen({
   onRetryAlarm,
   onFixLockScreenAccess,
   onRevealNow,
+  onSetAlarmAt,
 }: Props) {
   // The welcome card is for people who haven't finished a ritual yet; "Got it"
   // hides it until the next launch.
@@ -68,7 +75,7 @@ export function HomeScreen({
         <View style={styles.brandCol}>
           <HorizonMark size={34} sunColor="#E89A2E" lineColor={brand.ink} />
           <Text style={styles.greeting}>Good morning</Text>
-          <Text style={styles.appName}>Morning Ritual</Text>
+          <Text style={styles.appName}>KindRise</Text>
         </View>
         <View style={styles.headerActions}>
           {streak.currentStreak > 0 && (
@@ -127,9 +134,9 @@ export function HomeScreen({
                 </Text>
                 <Text style={styles.chainProgress}>
                   {c.earnedBadge
-                    ? 'Champion — earned!'
+                    ? 'Champion badge earned'
                     : c.chainCount >= 7
-                    ? 'Almost there!'
+                    ? 'One more day for the badge'
                     : `${7 - c.chainCount} to go for the Champion badge`}
                 </Text>
               </View>
@@ -145,14 +152,14 @@ export function HomeScreen({
 
       <View style={styles.card}>
         <View style={styles.cardHeader}>
-          <Text style={styles.cardLabel}>Today's task</Text>
+          <Text style={styles.cardLabel}>Today's ritual</Text>
           <Text style={styles.cardTheme}>
             {themeEmoji(pick.task.theme)} {pick.task.theme}
           </Text>
         </View>
         <Text style={styles.cardText}>{pick.task.text}</Text>
         <Text style={styles.cardMeta}>
-          Optional · about {pick.task.estSeconds < 60 ? `${pick.task.estSeconds} seconds` : `${Math.round(pick.task.estSeconds / 60)} min`}
+          Optional, about {pick.task.estSeconds < 60 ? `${pick.task.estSeconds} seconds` : `${Math.round(pick.task.estSeconds / 60)} min`}
         </Text>
         <RitualEvidence task={pick.task} />
       </View>
@@ -176,7 +183,7 @@ export function HomeScreen({
               ? 'Allow notifications so it can wake you.'
               : alarmStatus === 'error'
               ? 'Tap Retry, or check alarm permissions in Settings.'
-              : 'Add one to wake up with a ritual.'}
+              : 'Add an alarm to get started.'}
           </Text>
         </View>
         {alarmStatus === 'needs-permission' ? (
@@ -206,6 +213,26 @@ export function HomeScreen({
         </View>
       ) : null}
 
+      <DawnTimesCard onSetAlarm={onSetAlarmAt} />
+
+      {analyticsConsent === null ? (
+        <View style={styles.card}>
+          <Text style={styles.cardLabel}>HELP IMPROVE THE APP?</Text>
+          <Text style={styles.consentBody}>
+            Share anonymous usage counts, like how many mornings the alarm was turned off. Never your journal or anything
+            you type. You can change this in Settings.
+          </Text>
+          <View style={styles.consentRow}>
+            <TouchableOpacity style={[styles.smallBtn, styles.flex]} onPress={() => onAnalyticsConsent(true)} accessibilityRole="button">
+              <Text style={styles.smallBtnText}>Yes, share</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.consentNo, styles.flex]} onPress={() => onAnalyticsConsent(false)} accessibilityRole="button">
+              <Text style={styles.consentNoText}>No thanks</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : null}
+
       {journal.length > 0 ? (
         <View style={styles.card}>
           <Text style={styles.cardLabel}>YOUR JOURNAL</Text>
@@ -217,10 +244,6 @@ export function HomeScreen({
           ))}
         </View>
       ) : null}
-
-      <TouchableOpacity style={styles.cta} onPress={onRevealNow} activeOpacity={0.85}>
-        <Text style={styles.ctaText}>Reveal today's task</Text>
-      </TouchableOpacity>
 
       <View style={styles.statsRow}>
         <View style={styles.statBox}>
@@ -249,6 +272,10 @@ export function HomeScreen({
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   brandCol: { flexShrink: 1, gap: 2 },
+  consentBody: { ...typography.body, color: colors.ink, marginTop: spacing.xs },
+  consentRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
+  consentNo: { borderWidth: 1.5, borderColor: colors.divider, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center', minHeight: 44 },
+  consentNoText: { ...typography.bodyBold, color: colors.ink },
   journalRow: { paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.divider },
   journalText: { ...typography.body, color: colors.ink },
   journalDate: { ...typography.caption, color: colors.sand, marginTop: 2 },

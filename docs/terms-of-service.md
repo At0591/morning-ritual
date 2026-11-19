@@ -1,122 +1,67 @@
-# Morning Ritual — Terms of Service
+# KindRise terms of service
 
-_Last updated: 5 June 2026_
+_Last updated: 19 November 2026_
 
-These Terms of Service ("Terms") govern your use of the Morning Ritual mobile application ("the app", "we", "us"). By downloading, installing, or using the app, you agree to these Terms.
+These terms apply when you download or use KindRise, an alarm app made by Akshay Tambe, an independent developer in Mumbai, India ("we" or "us"). By using the app, you agree to them.
 
-## 1. The app
+## What KindRise does
 
-Morning Ritual is a wellness alarm application that:
-- Plays an alarm at a time you choose
-- Shows you a small ritual task (movement, reflection, learning, or creative prompt)
-- Lets you capture optional proof (photo or voice) that you completed the task
-- Tracks your daily streak and habit progress
-- Offers a Premium subscription with access to a larger task library
+KindRise plays an alarm at the times you set. The tune starts quiet and gets louder. You tap a rising sun to show you're awake, write one small good thing in a journal on your phone, and about 10 minutes later the app checks that you're still up. It also suggests an optional morning ritual and can show today's sunrise and Brahma Muhurta times for your area. KindRise is for personal use.
 
-The app is provided "as is" for personal, non-commercial use.
+## Who can use it
 
-## 2. Eligibility
+You need to be at least 13 years old.
 
-You must be at least 13 years old to use the app. By using it, you confirm you meet this requirement. If you are using it on behalf of an organization, you confirm you have authority to agree to these Terms on its behalf.
+## Missed alarms
 
-## 3. Account and data
+We test KindRise on real phones, including brands that are known to stop alarms, but no app can promise to ring every time. Your phone's battery settings, Do Not Disturb, updates and volume can all stop an alarm. If waking up on time really matters (a flight, an exam, a shift, medicine), set a second alarm on another device too. KindRise shows a warning on the Home screen when it finds a setting that could stop your alarm.
 
-The app does not require you to create an account. All your data (task history, streaks, preferences, captured media) is stored locally on your device. We do not have access to it, and we cannot restore it if you uninstall the app or lose your device.
+## Your data
 
-You are responsible for:
-- Backing up your device
-- Keeping your device secure
-- Resetting your data via the in-app Settings if you want to start fresh
+KindRise doesn't need an account. Your alarms, journal and settings stay on your phone, and we can't restore them if you uninstall the app or lose your phone. Use Settings > Export my journal to keep a copy. The privacy policy explains what leaves your phone and when.
 
-## 4. Subscriptions
+## Premium
 
-Premium features are available via auto-renewable subscriptions:
-- **Monthly**: $3.99 USD / month
-- **Yearly**: $29.99 USD / year (best value)
+Premium isn't available yet. When it launches:
 
-Pricing may vary by region and is shown in your local currency at checkout. Prices are subject to change for new subscribers; existing subscribers keep their price for the life of their subscription.
+- It will cost $4.99 a month or $29.99 a year (US prices; Google Play shows the price in your currency at checkout), with a free trial when one is offered.
+- Google Play bills you, and your subscription renews automatically until you cancel. Cancel at least 24 hours before the renewal date in Google Play under Payments and subscriptions, and you won't be charged again. You keep Premium until the end of the period you paid for.
+- If you're on a free trial, you'll be charged when it ends unless you cancel before then. The app will show the date the trial ends before you start it.
+- Refunds go through Google Play's refund policy, and your local consumer law may give you more.
+- If we raise the price, Google Play will tell you before it applies to you, and you can cancel.
+- The alarm, the morning flow and your journal stay free. We won't move them behind Premium.
 
-Subscriptions are billed through:
-- **Apple App Store** (on iOS) — managed via your Apple ID subscription settings
-- **Google Play Store** (on Android) — managed via your Google account subscription settings
+## Health
 
-**Auto-renewal**: Subscriptions automatically renew at the end of each billing period unless cancelled at least 24 hours before the end of the current period.
+KindRise is a general wellness app. It isn't a medical device and doesn't diagnose or treat anything. Each ritual shows how strong the evidence behind it is and where it comes from, but the rituals aren't medical advice. If you have a sleep problem or keep feeling very sleepy during the day, talk to a doctor. The Brahma Muhurta time is shown as a traditional practice from Hindu Ayurvedic texts, not as a health claim.
 
-**Cancellation**: You can cancel at any time. Cancellation takes effect at the end of the current billing period. We do not offer refunds for partial periods; refunds are handled by Apple / Google per their policies.
+## Fair use
 
-**Free trial**: If a free trial is offered, you will be charged at the end of the trial period unless you cancel before then.
+Please don't break the law with the app, try to get Premium without paying, or interfere with how it works.
 
-**Price held forever**: We will not increase the price for current subscribers. New subscribers may see price changes at our discretion.
+## Ownership
 
-## 5. Health disclaimer
+We own the KindRise name, logo, design, ritual texts and app content. The app's source code is published at <https://github.com/At0591/morning-ritual> under the licence stated there. Research and sources quoted in the rituals belong to their authors.
 
-The app is for general wellness and habit-building. It is **not a medical device** and is **not a substitute for professional medical advice, diagnosis, or treatment**. The tasks and affirmations in the app are for informational and motivational purposes only.
+## Other services
 
-If you have a medical condition, sleep disorder, or mental health concern, consult a qualified professional before relying on the app for alarm or habit purposes.
+KindRise uses Google Play for downloads and billing, PostHog for anonymous usage counts (only if you say yes), and, once Premium launches, RevenueCat to check subscriptions. Each has its own terms and privacy policy.
 
-The app is provided as a wellness tool, not a treatment.
+## Warranty and liability
 
-## 6. Acceptable use
+THE APP IS PROVIDED "AS IS", WITHOUT WARRANTIES OF ANY KIND, INCLUDING ANY WARRANTY THAT EVERY ALARM WILL RING ON TIME. TO THE EXTENT THE LAW ALLOWS, WE ARE NOT LIABLE FOR INDIRECT OR CONSEQUENTIAL LOSSES, SUCH AS A MISSED APPOINTMENT OR LOST DATA. OUR TOTAL LIABILITY FOR ANY CLAIM IS LIMITED TO WHAT YOU PAID US IN THE 12 MONTHS BEFORE THE CLAIM, OR US$100 IF THAT IS MORE.
 
-You agree not to:
-- Reverse-engineer, decompile, or attempt to extract the source code of the app
-- Use the app for any unlawful purpose
-- Interfere with or disrupt the app's infrastructure
-- Attempt to access premium features without a valid subscription
-- Capture, upload, or share content that is illegal, harmful, or violates others' rights
+Nothing in these terms limits rights that consumer law in your country gives you and that can't be removed by contract.
 
-We reserve the right to suspend or terminate your access if you violate these terms.
+## Changes and ending
 
-## 7. Intellectual property
+If these terms change, we'll update the date at the top, and the app will show a notice for a change that affects you. You can stop using KindRise at any time by uninstalling it. If we ever shut the app down while you have a paid subscription, we'll tell you in advance and refund unused time where the law requires it.
 
-The app, including its design, code, content, task library, and branding, is owned by the developer (Akshay Bhat) and is protected by copyright, trademark, and other intellectual property laws.
+## Law
 
-You may use the app for personal use. You may not copy, redistribute, or create derivative works without permission.
+These terms are governed by the laws of India. If you live in the EU, the UK or another country with mandatory consumer protection, you can also rely on those laws and bring a claim in your local courts.
 
-The "Morning Ritual" name, rising sun logo, and related branding are trademarks of the developer.
+## Contact
 
-## 8. Third-party services
-
-The app uses the following third-party services:
-- **Apple App Store** / **Google Play Store** — for subscription billing
-- **RevenueCat** (<https://revenuecat.com>) — for subscription management and analytics
-- **Expo / React Native** — for app framework and build infrastructure
-
-Each of these services has its own privacy policy and terms. Your use of the app constitutes acceptance of those terms as well.
-
-## 9. Disclaimers and limitation of liability
-
-**THE APP IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.**
-
-We do not warrant that:
-- The app will be uninterrupted, secure, or error-free
-- The alarm will always fire at the exact time you specify (reliability depends on your device, OS, and settings)
-- The content is accurate, complete, or suitable for your specific situation
-
-**TO THE MAXIMUM EXTENT PERMITTED BY LAW, WE SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING LOST DATA, LOST PROFITS, OR LOST OPPORTUNITY, ARISING FROM YOUR USE OF THE APP.**
-
-Our total liability for any claim arising from the app is limited to the amount you paid us in the 12 months preceding the claim, or $100 USD, whichever is greater.
-
-## 10. Changes to these terms
-
-We may update these Terms from time to time. The "Last updated" date at the top will reflect the change. For material changes, we may show a notice in the app. Continued use after a change constitutes acceptance of the new Terms.
-
-## 11. Termination
-
-You can stop using the app at any time by uninstalling it.
-
-We may suspend or discontinue the app at any time, with or without notice. If you have an active paid subscription, we will provide reasonable advance notice and offer a pro-rata refund where required by law.
-
-## 12. Governing law
-
-These Terms are governed by the laws of India. Any disputes will be resolved in the appropriate courts in your jurisdiction, unless mandatory consumer protection laws dictate otherwise.
-
-## 13. Contact
-
-For questions about these Terms:
-- Email: <akshay@morningritual.app>
-- GitHub: <https://github.com/At0591/morning-ritual/issues>
-
----
-
-_Plain-English summary: Use the app for personal wellness. Pay $3.99/mo or $29.99/yr for premium. Cancel anytime. We don't promise the alarm always works perfectly (your phone's settings matter). We're not liable for missed alarms or health outcomes._
+Email: [support email to be added before launch]
+GitHub: <https://github.com/At0591/morning-ritual/issues>

@@ -1,25 +1,36 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
           xmlns:tools="http://schemas.android.com/tools">
-  <!-- AlarmRingService: a media-playback foreground service that loops the alarm tone. -->
+  <!--
+    Exact alarms: USE_EXACT_ALARM is granted automatically to alarm-clock apps
+    on Android 13+ (Play policy allows it for "an alarm or timer app").
+    SCHEDULE_EXACT_ALARM only covers Android 12 / 12L, which lack USE_EXACT_ALARM.
+  -->
+  <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+  <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32" />
+
+  <!--
+    AlarmRingService keeps a ringing alarm going in the background. Its type is
+    systemExempted, which Android reserves for apps holding an exact-alarm
+    permission that use a foreground service to continue alarms (Android 14
+    behaviour changes). mediaPlayback was wrong: Play requires that playback
+    to be started by the user, and an alarm isn't.
+  -->
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED" />
   <uses-permission android:name="android.permission.WAKE_LOCK" />
   <uses-permission android:name="android.permission.VIBRATE" />
   <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
-  <!-- Lets AlarmRingService open the wake-up screen on skins that reject full-screen intents. -->
+  <!--
+    "Display over other apps": only requested on phone brands whose skins reject
+    full-screen alarms (Vivo/iQOO OriginOS, Xiaomi, Oppo, Realme). It lets the
+    ringer open the wake-up screen itself. The user grants it in Settings.
+  -->
   <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
   <application>
     <!--
-      Broadcast receivers for the alarm scheduler. AlarmFireReceiver is the
-      one that AlarmManager.setExactAndAllowWhileIdle() targets. When the
-      alarm fires (even if the app is killed / phone is locked / Doze mode
-      is active), this receiver is invoked by the OS.
-
-      BootCompletedReceiver re-arms pending alarms after a device reboot,
-      since AlarmManager loses all alarms across reboots.
-
-      Both are NOT exported (Android 12+ requirement for runtime receivers
-      with explicit Intent targeting).
+      AlarmFireReceiver is what AlarmManager.setAlarmClock() targets. It runs
+      even if the app is killed, the phone is locked or in Doze.
+      BootCompletedReceiver re-arms pending alarms after a reboot.
     -->
     <receiver
         android:name="expo.modules.alarmscheduler.AlarmFireReceiver"
@@ -39,12 +50,8 @@
       </intent-filter>
     </receiver>
     <service
-        android:name="expo.modules.alarmscheduler.SmartWakeService"
-        android:exported="false"
-        android:foregroundServiceType="health" />
-    <service
         android:name="expo.modules.alarmscheduler.AlarmRingService"
         android:exported="false"
-        android:foregroundServiceType="mediaPlayback" />
+        android:foregroundServiceType="systemExempted" />
   </application>
 </manifest>

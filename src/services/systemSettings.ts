@@ -1,7 +1,7 @@
-// Shortcuts into the phone's own settings for Morning Ritual.
+// Shortcuts into the phone's own settings for KindRise.
 import { Alert, Linking, Platform } from 'react-native';
 
-/** Open Settings → Apps → Morning Ritual (Android) or the app's settings (iOS). */
+/** Open Settings → Apps → KindRise (Android) or the app's settings (iOS). */
 export async function openAppSettings(): Promise<void> {
   try {
     if (Platform.OS === 'android') {
@@ -10,7 +10,7 @@ export async function openAppSettings(): Promise<void> {
       await Linking.openURL('app-settings:');
     }
   } catch {
-    Alert.alert('Could not open Settings', 'Please open Settings → Apps → Morning Ritual → Notifications manually.');
+    Alert.alert('Could not open Settings', 'Please open Settings → Apps → KindRise → Notifications manually.');
   }
 }
 
@@ -22,9 +22,9 @@ export function showOemSetupGuide(): void {
   Alert.alert(
     'Make alarms fire on lock screen',
     "iQOO / Vivo / Xiaomi aggressively kill background apps. To make sure the alarm fires when your phone is locked:\n\n" +
-      "1. Settings → Apps → Morning Ritual → Auto-launch → ON\n" +
-      "2. Settings → Apps → Morning Ritual → Battery → Unrestricted / Don't optimize\n" +
-      "3. Settings → Apps → Morning Ritual → Notifications → enable Ringtone\n\n" +
+      "1. Settings → Apps → KindRise → Auto-launch → ON\n" +
+      "2. Settings → Apps → KindRise → Battery → Unrestricted / Don't optimize\n" +
+      "3. Settings → Apps → KindRise → Notifications → enable Ringtone\n\n" +
       "These are 3 quick toggles. Tap 'Open settings' to jump there now.",
     [
       { text: 'Open settings', onPress: () => void openAppSettings() },

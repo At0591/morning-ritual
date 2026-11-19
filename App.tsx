@@ -4,7 +4,7 @@
 // Screens live in src/screens; this file owns the shared state they act on.
 
 import { useEffect, useRef, useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Share } from 'react-native';
 import { useFonts } from 'expo-font';
 import { Fraunces_600SemiBold } from '@expo-google-fonts/fraunces';
 import { AtkinsonHyperlegible_400Regular, AtkinsonHyperlegible_700Bold } from '@expo-google-fonts/atkinson-hyperlegible';
@@ -24,6 +24,7 @@ import {
   setSetting,
   addJournalEntry,
   getJournalEntries,
+  formatJournalExport,
   type JournalEntry,
   type DayHistory,
   type Streak,
@@ -74,6 +75,9 @@ import { CheckInScreen } from './src/screens/morning/CheckInScreen';
 import { LoadingView, StartupErrorView } from './src/components/StartupStatus';
 import {
   initAnalytics,
+  stopAnalytics,
+  ANALYTICS_CONSENT_KEY,
+  type AnalyticsConsent,
   trackEvent,
   trackAlarmScheduled,
   trackTaskCompleted,
@@ -101,6 +105,8 @@ export default function App() {
   const [lastStreakCount, setLastStreakCount] = useState(0);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [editingAlarmId, setEditingAlarmId] = useState<string | null>(null);
+  // Time to start a new alarm at, when it comes from the sunrise card.
+  const [editingInitialTime, setEditingInitialTime] = useState<string | null>(null);
   const [preferredTheme, setPreferredTheme] = useState<string | null>(null);
   const [selectedSound, setSelectedSound] = useState<string>('default');
   const [bedtime, setBedtime] = useState<string>('22:30');
@@ -108,6 +114,7 @@ export default function App() {
   const [subscriptionTier, setSubscriptionTier] = useState<SubscriptionTier>('free');
   const [alarmHelpDismissed, setAlarmHelpDismissed] = useState(false);
   const [journal, setJournal] = useState<JournalEntry[]>([]);
+  const [analyticsConsent, setAnalyticsConsent] = useState<AnalyticsConsent>(null);
   // This morning's flow: snoozes used, the saved line, the ritual shown on
   // "Done", and when the "Still up?" check will ring.
   const [snoozesUsed, setSnoozesUsed] = useState(0);
@@ -148,9 +155,12 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
-        await initAnalytics();
-        trackEvent('App_Open');
         await openDatabase();
+        // Analytics only after the user opted in (asked once on Home).
+        const consent = (await getSetting(ANALYTICS_CONSENT_KEY)) as AnalyticsConsent;
+        setAnalyticsConsent(consent === 'granted' || consent === 'denied' ? consent : null);
+        await initAnalytics(consent);
+        trackEvent('App_Open');
         await initAlarmService();
         // Whatever fires the alarm (native AlarmManager, expo-notifications or a
         // JS timer) opens the wake screen, the only screen that stops the sound
@@ -377,6 +387,25 @@ export default function App() {
     await refreshProgress();
   };
 
+  // The user's answer to "share anonymous usage counts?" (Home card or Settings).
+  const onChangeAnalyticsConsent = async (granted: boolean) => {
+    const value: AnalyticsConsent = granted ? 'granted' : 'denied';
+    setAnalyticsConsent(value);
+    await setSetting(ANALYTICS_CONSENT_KEY, value);
+    if (granted) await initAnalytics('granted');
+    else await stopAnalytics();
+  };
+
+  // Your words are yours: share the whole journal as plain text (email, notes, Drive...).
+  const onExportJournal = async () => {
+    const entries = await getJournalEntries(10_000);
+    if (entries.length === 0) {
+      Alert.alert('Nothing to export yet', 'Your journal fills up one line each morning.');
+      return;
+    }
+    await Share.share({ title: 'My KindRise journal', message: formatJournalExport(entries) });
+  };
+
   const onDismissAlarmHelp = async () => {
     await setSetting('alarm_sound_help_dismissed', '1');
     setAlarmHelpDismissed(true);
@@ -435,7 +464,7 @@ export default function App() {
     if (!access.overlay) {
       Alert.alert(
         'Let your alarm wake you properly',
-        'Allow Morning Ritual to display over other apps. When your alarm rings, it can then open your morning ritual over the lock screen instead of hiding in your notifications.',
+        'Allow KindRise to display over other apps. When your alarm rings, it can then open your morning ritual over the lock screen instead of hiding in your notifications.',
         [
           { text: 'Not now', style: 'cancel' },
           { text: 'Allow', onPress: () => void openDisplayOverAppsSettings() },
@@ -444,7 +473,7 @@ export default function App() {
     } else if (!access.fullScreen) {
       Alert.alert(
         'Let your alarm wake you properly',
-        'Allow Morning Ritual to show full-screen notifications, so your alarm opens over the lock screen instead of hiding in your notifications.',
+        'Allow KindRise to show full-screen notifications, so your alarm opens over the lock screen instead of hiding in your notifications.',
         [
           { text: 'Not now', style: 'cancel' },
           { text: 'Allow', onPress: () => void openFullScreenAlarmSettings() },
@@ -498,6 +527,8 @@ export default function App() {
                   chains={chains}
                   history={history}
                   journal={journal}
+                  analyticsConsent={analyticsConsent}
+                  onAnalyticsConsent={(granted) => void onChangeAnalyticsConsent(granted)}
                   alarmStatus={alarmStatus}
                   nextAlarm={nextAlarm}
                   lockScreenAccessMissing={lockScreen.missing}
@@ -507,6 +538,11 @@ export default function App() {
                   onRetryAlarm={() => void resyncAlarms(true)}
                   onFixLockScreenAccess={() => void lockScreen.fix()}
                   onRevealNow={onRevealNow}
+                  onSetAlarmAt={(time) => {
+                    setEditingAlarmId(null);
+                    setEditingInitialTime(time);
+                    navigate('EditAlarm');
+                  }}
                 />
               )}
             </Stack.Screen>
@@ -581,6 +617,9 @@ export default function App() {
                   onChangeSound={onSaveSound}
                   onChangeBedtime={onSaveBedtime}
                   onResetAllData={onResetAllData}
+                  analyticsEnabled={analyticsConsent === 'granted'}
+                  onChangeAnalytics={(granted) => void onChangeAnalyticsConsent(granted)}
+                  onExportJournal={() => void onExportJournal()}
                   onManageAlarms={() => navigate('AlarmsList')}
                   onUpgrade={() => navigate('Premium')}
                   onBack={goBack}
@@ -594,6 +633,7 @@ export default function App() {
                   onChanged={() => resyncAlarms(true)}
                   onCreateAlarm={() => {
                     setEditingAlarmId(null);
+                    setEditingInitialTime(null);
                     navigate('EditAlarm');
                   }}
                   onEditAlarm={(id) => {
@@ -607,6 +647,7 @@ export default function App() {
               {() => (
                 <EditAlarmScreen
                   alarmId={editingAlarmId}
+                  initialTime={editingInitialTime}
                   onBack={goBack}
                   onSave={async () => {
                     goBack();
