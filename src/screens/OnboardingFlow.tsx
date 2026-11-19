@@ -123,9 +123,9 @@ export function OnboardingFlow({ onComplete }: Props) {
             <View style={styles.bullets}>
               {[
                 { icon: 'music' as const, text: 'A gentle tune that starts quiet and slowly gets louder.' },
-                { icon: 'sun' as const, text: "Tap the rising sun to show you're awake. No maths, no squats." },
+                { icon: 'sun' as const, text: "Tap the rising sun to show you're awake. There's no maths and no exercise." },
                 { icon: 'edit-3' as const, text: "Write one small good thing, or pick a suggestion. Ten minutes later we check you're still up." },
-                { icon: 'lock' as const, text: 'Your journal stays on your phone. No account. Usage stats only if you say yes.' },
+                { icon: 'lock' as const, text: "Your journal stays on your phone and you don't need an account. Usage stats are sent only if you say yes." },
               ].map((b) => (
                 <View key={b.icon} style={styles.bulletRow}>
                   <Feather name={b.icon} size={22} color={colors.warning} style={styles.bulletIcon} />

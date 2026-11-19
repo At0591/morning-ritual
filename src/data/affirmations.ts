@@ -16,7 +16,7 @@ const affirmations = [
   "Bedtime decides a lot about how this morning felt.",
   "You don't have to feel ready to start the day.",
   "Write down one thing you're looking forward to.",
-  "Rest days are part of keeping a habit, not a break from it.",
+  "Rest days are part of keeping a habit.",
   "If yesterday went badly, today is a new count.",
   "Five minutes for yourself before the day starts is plenty.",
   "Notice one thing that went right this morning.",
@@ -32,7 +32,7 @@ const affirmations = [
   "Quiet mornings count too.",
   "Write one line about how you slept.",
   "Small and steady is a good pace for a morning.",
-  "Thank yourself for getting up. It wasn't nothing.",
+  "Thank yourself for getting up. It took some effort.",
 ];
 
 export function getTodayAffirmation(): string {

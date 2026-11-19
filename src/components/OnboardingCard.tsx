@@ -26,7 +26,7 @@ export function OnboardingCard({ onDismiss }: Props) {
         </View>
         <View style={styles.bulletRow}>
           <Text style={styles.bulletDot}>·</Text>
-          <Text style={styles.bulletText}>On some phones, follow "Make sure your alarm fires"</Text>
+          <Text style={styles.bulletText}>On some phones, follow "Make sure your alarm rings"</Text>
         </View>
         <View style={styles.bulletRow}>
           <Text style={styles.bulletDot}>·</Text>

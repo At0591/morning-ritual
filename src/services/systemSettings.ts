@@ -20,12 +20,12 @@ export async function openAppSettings(): Promise<void> {
  */
 export function showOemSetupGuide(): void {
   Alert.alert(
-    'Make alarms fire on lock screen',
-    "iQOO / Vivo / Xiaomi aggressively kill background apps. To make sure the alarm fires when your phone is locked:\n\n" +
+    'Keep your alarm ringing when the phone is locked',
+    "iQOO, Vivo and Xiaomi phones close background apps to save battery. To make sure your alarm rings when the phone is locked:\n\n" +
       "1. Settings → Apps → KindRise → Auto-launch → ON\n" +
       "2. Settings → Apps → KindRise → Battery → Unrestricted / Don't optimize\n" +
       "3. Settings → Apps → KindRise → Notifications → enable Ringtone\n\n" +
-      "These are 3 quick toggles. Tap 'Open settings' to jump there now.",
+      "Tap 'Open settings' to go there now.",
     [
       { text: 'Open settings', onPress: () => void openAppSettings() },
       { text: 'Got it', style: 'cancel' },

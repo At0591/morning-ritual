@@ -111,7 +111,7 @@ export function SettingsScreen({
           <View style={{ flex: 1 }}>
             <Text style={styles.upgradeTitle}>Premium is coming</Text>
             <Text style={styles.upgradeSub}>
-              Stricter wake-up modes for heavy snoozers, more tunes and insights. The alarm and your journal stay free.
+              Stricter wake-up modes for heavy snoozers, more tunes and insights. The alarm and your journal will always be free.
             </Text>
           </View>
           <Text style={styles.upgradeArrow}>→</Text>
@@ -178,7 +178,7 @@ export function SettingsScreen({
         <Text style={styles.sectionTitle}>Alarm sound</Text>
         <Text style={styles.sectionSub}>
           Pick the sound that wakes you. All 5 are gentle nature recordings
-          sourced from Freesound (CC0) and ship free for everyone.
+          from Freesound (CC0), free for everyone.
         </Text>
         {SOUND_OPTIONS.map((s) => (
           <TouchableOpacity

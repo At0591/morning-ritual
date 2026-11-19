@@ -98,10 +98,10 @@ export function HomeScreen({
       {Platform.OS === 'android' && !alarmHelpDismissed ? (
         <TouchableOpacity style={styles.alarmHelpCard} onPress={showOemSetupGuide} activeOpacity={0.85}>
           <View style={styles.flex}>
-            <Text style={styles.alarmHelpTitle}>⏰ Make sure your alarm fires</Text>
+            <Text style={styles.alarmHelpTitle}>Make sure your alarm rings</Text>
             <Text style={styles.alarmHelpBody}>
-              Some Android phones (iQOO, Vivo, Xiaomi) kill background apps. Tap for 3 quick toggles so the alarm
-              fires when your phone is locked.
+              Some Android phones, such as iQOO, Vivo and Xiaomi, close background apps. Tap to see the settings that keep
+              your alarm ringing when the phone is locked.
             </Text>
           </View>
           <TouchableOpacity
@@ -134,7 +134,7 @@ export function HomeScreen({
                 </Text>
                 <Text style={styles.chainProgress}>
                   {c.earnedBadge
-                    ? 'Champion badge earned'
+                    ? 'You got the Champion badge'
                     : c.chainCount >= 7
                     ? 'One more day for the badge'
                     : `${7 - c.chainCount} to go for the Champion badge`}

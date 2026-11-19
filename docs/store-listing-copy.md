@@ -1,4 +1,4 @@
-# KindRise: Google Play listing draft
+# KindRise store listing draft
 
 Draft for the first Google Play listing. Check every field against the `store-listing` skill and the current Play Console limits before pasting. The iPhone listing comes later and needs its own headline, because every iPhone alarm app can ring through Silent mode.
 
@@ -39,18 +39,29 @@ No account. Your journal never leaves your phone. Anonymous usage counts are sen
 
 ## Screenshots (in this order, one line each)
 
-1. Ringing screen: "A tune that starts quiet"
-2. Sun tap: "Tap the sun to show you're up"
-3. One good thing: "One small good thing to start the day"
-4. "Still up?": "A check 10 minutes later"
-5. A ritual with its evidence label: "41 rituals, each with its source"
-6. Sunrise card: "Today's sunrise and Brahma Muhurta"
-7. Home warning card: "Tells you when a setting could stop your alarm"
+1. Ringing screen: "A tune that starts quiet".
+2. Sun tap: "Tap the sun to show you're up".
+3. One good thing: "One small good thing to start the day".
+4. "Still up?": "A check 10 minutes later".
+5. A ritual with its evidence label: "41 rituals, each with its source".
+6. Sunrise card: "Today's sunrise and Brahma Muhurta".
+7. Home warning card: "Tells you when a setting could stop your alarm".
 
 ## Claims we can and can't make
 
-Can: "built and tested to ring on phones that stop alarms", "may help you feel more awake" (gentle tune, one small study), "a check that you're awake".
-Can't: "rings every time", "clinically proven", "cures grogginess", any health claim for Brahma Muhurta, "gets you up" as a result until the closed test gives numbers.
+We can say:
+
+* "built and tested to ring on phones that stop alarms"
+* "may help you feel more awake" (gentle tune, one small study)
+* "a check that you're awake"
+
+We can't say:
+
+* "rings every time"
+* "clinically proven"
+* "cures grogginess"
+* any health claim for Brahma Muhurta
+* "gets you up" as an outcome, until the closed test gives numbers
 
 ## Contact and links
 

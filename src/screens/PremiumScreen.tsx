@@ -39,7 +39,7 @@ const PREMIUM_BENEFITS: Array<{ icon: keyof typeof Feather.glyphMap; title: stri
   {
     icon: 'bell',
     title: 'A firmer "Still up?"',
-    body: 'Choose when the check comes and how hard it is to dismiss, for mornings you know you will snooze.',
+    body: 'Set when the check comes and how hard it is to dismiss, for mornings you know you will snooze.',
   },
   {
     icon: 'bar-chart-2',
@@ -49,7 +49,7 @@ const PREMIUM_BENEFITS: Array<{ icon: keyof typeof Feather.glyphMap; title: stri
   {
     icon: 'music',
     title: 'More gentle tunes',
-    body: 'More licensed melodic tunes, and you choose how long the tune takes to rise.',
+    body: 'More licensed melodic tunes, and you pick how long the tune takes to rise.',
   },
 ];
 
@@ -139,7 +139,7 @@ export function PremiumScreen({ onClose, onPurchased }: Props) {
         <Text style={styles.heroSubtitle}>
           {tier === 'premium'
             ? 'You have Premium. Thank you for supporting KindRise.'
-            : 'Extra help for the mornings that are hardest to get up. The alarm and your journal stay free.'}
+            : 'Extra help for the mornings that are hardest to get up. The alarm and your journal will always be free.'}
         </Text>
       </View>
 
@@ -162,7 +162,7 @@ export function PremiumScreen({ onClose, onPurchased }: Props) {
               <Text style={styles.comingSoonBadge}>COMING LATER</Text>
               <Text style={styles.priceCardTitle}>Premium isn't available yet</Text>
               <Text style={styles.comingSoonBody}>
-                Everything you need to wake up is free today: the gentle alarm, the sun tap, your journal,
+                Everything you need to wake up is free today, including the gentle alarm, your journal,
                 the "Still up?" check and all 41 rituals. Premium will come in a later update, and nothing
                 you use now will move behind it.
               </Text>

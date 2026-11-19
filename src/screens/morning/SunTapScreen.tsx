@@ -71,7 +71,7 @@ export function SunTapScreen({ onDone, onCantDo }: Props) {
     <View style={[styles.container, { paddingBottom: 24 + insets.bottom }]}>
       <StatusBar style="light" />
       <Text style={styles.title}>{nudge ? 'Still there? Tap the sun.' : 'Tap the sun'}</Text>
-      <Text style={styles.sub}>Five taps. No rush.</Text>
+      <Text style={styles.sub}>Tap the sun five times, as slowly as you like.</Text>
       <View style={styles.field} onLayout={onLayout}>
         {field.width > 0 ? (
           <Pressable
