@@ -21,7 +21,9 @@ How a morning works:
 3. Write one small good thing, or pick a suggestion. It goes into a journal that stays on your phone.
 4. About 10 minutes later, KindRise asks "Still up?". One tap answers it. Miss it, and the tune plays again.
 
+<!-- vale AkshayPro.Contractions = NO -->
 Hard mornings happen. A large "I can't do this today" button is always there and works with screen readers.
+<!-- vale AkshayPro.Contractions = YES -->
 
 After you're up, there's an optional morning ritual. KindRise has 41, each with its evidence level (strong, moderate or early) and the study or source behind it.
 
@@ -40,22 +42,22 @@ No account. Your journal never leaves your phone. Anonymous usage counts are sen
 ## Screenshots (in this order, one line each)
 
 1. Ringing screen: "A tune that starts quiet".
-2. Sun tap: "Tap the sun to show you're up".
+2. Sun tap: "Tap the sun to show you are up".
 3. One good thing: "One small good thing to start the day".
 4. "Still up?": "A check 10 minutes later".
 5. A ritual with its evidence label: "41 rituals, each with its source".
 6. Sunrise card: "Today's sunrise and Brahma Muhurta".
 7. Home warning card: "Tells you when a setting could stop your alarm".
 
-## Claims we can and can't make
+## Claims we can and cannot make
 
 We can say:
 
 * "built and tested to ring on phones that stop alarms"
 * "may help you feel more awake" (gentle tune, one small study)
-* "a check that you're awake"
+* "a check that you are awake"
 
-We can't say:
+We cannot say:
 
 * "rings every time"
 * "clinically proven"

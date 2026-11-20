@@ -6,7 +6,7 @@ KindRise is an alarm app made by Akshay Tambe, an independent developer in Mumba
 
 ## What KindRise does
 
-KindRise plays an alarm at the times you set. The tune starts quiet and gets louder. You tap a rising sun to show you're awake and write one small good thing in a journal on your phone. About 10 minutes later the app checks that you're still up. It also suggests an optional ritual for the morning and can show today's sunrise and Brahma Muhurta times for your area. KindRise is for personal use.
+KindRise plays an alarm at the times you set. The tune starts quiet and gets louder. You tap a rising sun to show you are awake and write one small good thing in a journal on your phone. About 10 minutes later the app checks that you are still up. It also suggests an optional ritual for the morning and can show today's sunrise and Brahma Muhurta times for your area. KindRise is for personal use.
 
 ## Who can use it
 
@@ -18,26 +18,26 @@ We test KindRise on real phones, including brands known to stop alarms. Even so,
 
 ## Your data
 
-KindRise doesn't need an account. Your alarms, journal and settings stay on your phone, and we can't restore them if you uninstall the app or lose your phone. Use Settings > Export my journal to keep a copy. The privacy policy explains what leaves your phone and when.
+KindRise does not need an account. Your alarms, journal and settings stay on your phone, and we cannot restore them if you uninstall the app or lose your phone. Use Settings > Export my journal to keep a copy. The privacy policy explains what leaves your phone and when.
 
 ## Premium
 
-Premium isn't available yet. When it launches:
+Premium is not available yet. When it launches:
 
 * It will cost $4.99 a month or $29.99 a year in US prices. Google Play shows the price in your currency at checkout. You get a free trial when one is offered.
-* Google Play bills you, and your subscription renews automatically until you cancel. Cancel at least 24 hours before the renewal date in Google Play under Payments and subscriptions, and you won't be charged again. You keep Premium until the end of the period you paid for.
-* If you're on a free trial, you'll be charged when it ends unless you cancel before then. The app will show the date the trial ends before you start it.
+* Google Play bills you, and your subscription renews automatically until you cancel. Cancel at least 24 hours before the renewal date in Google Play under Payments and subscriptions, and you will not be charged again. You keep Premium until the end of the period you paid for.
+* If you are on a free trial, you will be charged when it ends unless you cancel before then. The app will show the date the trial ends before you start it.
 * Refunds go through Google Play's refund policy, and your local consumer law may give you more.
 * Google Play will tell you before any price rise applies to you. You can then cancel.
-* The alarm, the morning flow and your journal will remain free. We won't move them behind Premium.
+* The alarm, the morning flow and your journal will remain free. We will not move them behind Premium.
 
 ## Health
 
-KindRise is a general wellness app. It isn't a medical device and doesn't diagnose or treat anything. Each ritual shows how strong the evidence behind it is and where it comes from, but the rituals aren't medical advice. If you have a sleep problem or keep feeling very sleepy during the day, talk to a doctor. The Brahma Muhurta time is shown as a traditional practice from Hindu Ayurvedic texts, not as a health claim.
+KindRise is a general wellness app. It is not a medical device and does not diagnose or treat anything. Each ritual shows how strong the evidence behind it is and where it comes from, but the rituals are not medical advice. If you have a sleep problem or keep feeling very sleepy during the day, talk to a doctor. The Brahma Muhurta time is shown as a traditional practice from Hindu Ayurvedic texts, not as a health claim.
 
 ## Fair use
 
-Please don't break the law with the app, try to get Premium without paying, or interfere with how it works.
+Please do not break the law with the app, try to get Premium without paying, or interfere with how it works.
 
 ## Ownership
 
@@ -53,7 +53,7 @@ KindRise uses Google Play for downloads and billing. If you say yes, it uses Pos
 THE APP IS PROVIDED "AS IS", WITHOUT WARRANTIES OF ANY KIND, INCLUDING ANY WARRANTY THAT EVERY ALARM WILL RING ON TIME. TO THE EXTENT THE LAW ALLOWS, WE ARE NOT LIABLE FOR INDIRECT OR CONSEQUENTIAL LOSSES, SUCH AS A MISSED APPOINTMENT OR LOST DATA. OUR TOTAL LIABILITY FOR ANY CLAIM IS LIMITED TO WHAT YOU PAID US IN THE 12 MONTHS BEFORE THE CLAIM, OR US$100 IF THAT IS MORE.
 <!-- vale on -->
 
-These terms don't limit any rights that consumer law in your country gives you and that can't be removed by contract.
+These terms do not limit any rights that consumer law in your country gives you and that cannot be removed by contract.
 
 ## Changes and ending
 
